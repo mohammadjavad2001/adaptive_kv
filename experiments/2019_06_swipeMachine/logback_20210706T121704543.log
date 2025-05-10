@@ -1,0 +1,29 @@
+2021-07-06 12:17:04 INFO Infer_LearnLib |SUL name: wipeSystem_basic.txt
+2021-07-06 12:17:04 INFO Infer_LearnLib |SUL dir: C:\Users\Carlos Diego\Documents\GitHub\DynamicLstarM\mealyInference\..\experiments\2019_06_swipeMachine\wipeSystem_basic.txt
+2021-07-06 12:17:04 INFO Infer_LearnLib |Output dir: ..\experiments\2019_06_swipeMachine
+2021-07-06 12:17:04 INFO Infer_LearnLib |Seed: 1625566624365
+2021-07-06 12:17:04 INFO Infer_LearnLib |Cache: Y
+2021-07-06 12:17:04 INFO Infer_LearnLib |ClosingStrategy: CloseFirst
+2021-07-06 12:17:04 INFO Infer_LearnLib |ObservationTableCEXHandler: RivestSchapire
+2021-07-06 12:17:04 INFO Infer_LearnLib |EquivalenceOracle: WpMethodHypEQOracle(2)
+2021-07-06 12:17:04 INFO Infer_LearnLib |Method: L*M
+2021-07-06 12:17:04 INFO Experiment |Starting round 1
+2021-07-06 12:17:04 INFO Experiment |Learning
+2021-07-06 12:17:04 INFO Experiment |net.automatalib.automata.transducers.impl.compact.CompactMealy@15c43bd9
+2021-07-06 12:17:04 INFO Experiment |Searching for counterexample
+2021-07-06 12:17:04 INFO Experiment |switchIntv rain rain rain
+2021-07-06 12:17:04 INFO Experiment |Starting round 2
+2021-07-06 12:17:04 INFO Experiment |Learning
+2021-07-06 12:17:04 INFO Experiment |net.automatalib.automata.transducers.impl.compact.CompactMealy@15c43bd9
+2021-07-06 12:17:04 INFO Experiment |Searching for counterexample
+2021-07-06 12:17:04 INFO Infer_LearnLib |Rounds: 2
+2021-07-06 12:17:04 INFO Infer_LearnLib |MQ [Resets]: 18
+2021-07-06 12:17:04 INFO Infer_LearnLib |MQ [Symbols]: 55
+2021-07-06 12:17:04 INFO Infer_LearnLib |EQ [Resets]: 40
+2021-07-06 12:17:04 INFO Infer_LearnLib |EQ [Symbols]: 193
+2021-07-06 12:17:04 INFO SimpleProfiler |Learning [ms]: 7
+2021-07-06 12:17:04 INFO SimpleProfiler |Searching for counterexample [ms]: 21
+2021-07-06 12:17:04 INFO Infer_LearnLib |Qsize: 3
+2021-07-06 12:17:04 INFO Infer_LearnLib |Isize: 2
+2021-07-06 12:17:04 INFO Infer_LearnLib |Equivalent: OK
+2021-07-06 12:17:04 INFO Infer_LearnLib |Info: N/A

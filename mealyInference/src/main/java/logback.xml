@@ -1,0 +1,78 @@
+<configuration>
+ 
+  <appender name="stdout" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} |%msg%n</pattern>
+    </encoder>
+    <target>
+      System.out
+    </target>
+  </appender>
+ 
+  # File appender
+  <timestamp key="bySecond" datePattern="yyyyMMdd'T'HHmmssSSS"/>
+  <appender name="fout" class="ch.qos.logback.core.FileAppender">
+    # Name of a log file
+    <file>${logdir:-logs}/${logname:-logback}_${logtstamp:-${bySecond}}.log</file>
+    <append>false</append>
+    <encoder>
+      # Pattern of log message for file appender
+      <pattern>%d{yyyy-MM-dd HH:mm:ss} %p %logger{0} |%m%n</pattern>
+    </encoder>
+  </appender>
+    
+  <logger name="de.learnlib.util.Experiment" level="DEBUG">
+    <appender-ref ref="fout" />
+    <!-- <appender-ref ref="stdout" /> -->
+  </logger>
+  
+  <logger name="de.learnlib.util.statistics.SimpleProfiler" level="DEBUG">
+    <appender-ref ref="fout" />
+    <!-- <appender-ref ref="stdout" /> -->
+  </logger>
+  
+    <logger name="br.usp.icmc.labes.mealyInference" level="DEBUG">
+    <appender-ref ref="fout" />
+    <!-- <appender-ref ref="stdout" /> -->
+  </logger>
+    <logger name="experiments.uk.ac.le.RunExperimentWMethod" level="DEBUG">
+    <appender-ref ref="fout" />
+    <!-- <appender-ref ref="stdout" /> -->
+  </logger>  
+    <logger name="experiments.uk.ac.le.RunExperimentRandomWMethodQsize" level="DEBUG">
+    <appender-ref ref="fout" />
+    <!-- <appender-ref ref="stdout" /> -->
+  </logger>  
+    <logger name="experiments.uk.ac.le.RunExperimentRandomWMethod" level="DEBUG">
+    <appender-ref ref="fout" />
+    <!-- <appender-ref ref="stdout" /> -->
+  </logger>  
+    <logger name="experiments.uk.ac.le.RunExperimentCreateOTs" level="DEBUG">
+    <appender-ref ref="fout" />
+    <!-- <appender-ref ref="stdout" /> -->
+  </logger>  
+    <logger name="experiments.uk.ac.le.RunExperimentAbstract" level="DEBUG">
+    <appender-ref ref="fout" />
+    <!-- <appender-ref ref="stdout" /> -->
+  </logger>  
+    <logger name="experiments.br.usp.icmc.labes.ExperimentNordsec16" level="DEBUG">
+    <appender-ref ref="fout" />
+    <!-- <appender-ref ref="stdout" /> -->
+  </logger>  
+  <logger name="de.learnlib.oracle.equivalence.mealy.RandomWalkEQOracle" level="DEBUG">
+    <appender-ref ref="fout" />
+    <!-- <appender-ref ref="stdout" /> -->
+  </logger>
+  
+  <logger name="de.learnlib.util.ExperimentDebug" level="DEBUG">
+    <appender-ref ref="fout" />
+    <!-- <appender-ref ref="stdout" /> -->
+  </logger>
+  
+  <logger name="de.learnlib.algorithms.dlstar.AbstractDLStar" level="DEBUG">
+    <appender-ref ref="fout" />
+    <!-- <appender-ref ref="stdout" /> -->
+  </logger>
+ 
+ 
+</configuration>

@@ -1,0 +1,40 @@
+2025-04-16 00:19:55 INFO Experiment |Starting round 1
+2025-04-16 00:19:55 INFO Experiment |Learning
+2025-04-16 00:19:55 INFO Experiment |Searching for counterexample
+2025-04-16 00:19:55 INFO Experiment |b  isRunning 
+2025-04-16 00:19:55 INFO Experiment |Starting round 2
+2025-04-16 00:19:55 INFO Experiment |Learning
+2025-04-16 00:19:55 INFO Experiment |Searching for counterexample
+2025-04-16 00:19:55 INFO Experiment |a  highLevel  isRunning 
+2025-04-16 00:19:55 INFO Experiment |Starting round 3
+2025-04-16 00:19:55 INFO Experiment |Learning
+2025-04-16 00:19:55 INFO Experiment |Searching for counterexample
+2025-04-16 00:19:55 INFO Experiment |receiveMsg  levelMsg  isRunning 
+2025-04-16 00:19:55 INFO Experiment |Starting round 4
+2025-04-16 00:19:55 INFO Experiment |Learning
+2025-04-16 00:19:55 INFO Experiment |Searching for counterexample
+2025-04-16 00:19:55 INFO Experiment |b  isRunning  end  isRunning 
+2025-04-16 00:19:55 INFO Experiment |Starting round 5
+2025-04-16 00:19:55 INFO Experiment |Learning
+2025-04-16 00:19:55 INFO Experiment |Searching for counterexample
+2025-04-16 00:19:55 INFO Experiment |b  isReady  setReady  isRunning 
+2025-04-16 00:19:55 INFO Experiment |Starting round 6
+2025-04-16 00:19:55 INFO Experiment |Learning
+2025-04-16 00:19:55 INFO Experiment |Searching for counterexample
+2025-04-16 00:19:55 INFO Experiment |b  isReady  setReady  isNotReady  isRunning 
+2025-04-16 00:19:55 INFO Experiment |Starting round 7
+2025-04-16 00:19:55 INFO Experiment |Learning
+2025-04-16 00:19:55 INFO Experiment |Searching for counterexample
+2025-04-16 00:19:55 INFO Experiment |b  isReady  setReady  isReady  pumpStart  isRunning 
+2025-04-16 00:19:55 INFO Experiment |Starting round 8
+2025-04-16 00:19:55 INFO Experiment |Learning
+2025-04-16 00:19:55 INFO Experiment |Searching for counterexample
+2025-04-16 00:19:55 INFO Experiment |b  isReady  setReady  isReady  pumpStart  setRunning  isRunning 
+2025-04-16 00:19:55 INFO Experiment |Starting round 9
+2025-04-16 00:19:55 INFO Experiment |Learning
+2025-04-16 00:19:55 INFO Experiment |Searching for counterexample
+2025-04-16 00:19:55 INFO Infer_LearnLib |Rounds: 9
+2025-04-16 00:19:55 INFO Infer_LearnLib |MQ [Resets]: 775
+2025-04-16 00:19:55 INFO Infer_LearnLib |MQ [Symbols]: 3204
+2025-04-16 00:19:55 INFO Infer_LearnLib |EQ [Resets]: 58675
+2025-04-16 00:19:55 INFO Infer_LearnLib |EQ [Symbols]: 298457

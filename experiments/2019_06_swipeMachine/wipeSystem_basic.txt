@@ -1,0 +1,11 @@
+1 -- rain/0 -> 1
+1 -- switchIntv/1 -> 3
+
+
+
+
+3 -- rain/1 -> 4
+3 -- switchIntv/0 -> 1
+
+4 -- rain/0 -> 3
+4 -- switchIntv/1 -> 4

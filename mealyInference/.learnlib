@@ -1,0 +1,29 @@
+## IrfanEQOracle parameters
+## IrfanEQOracle parameters
+## irfan_maxLength=1250
+## irfan_maxTests=500
+## irfan_maxLengthIsMult=50
+## irfan_maxTestsIsMult=50
+
+## RandomWalkEQOracle parameters
+rndWalk_restartProbability=0.05
+rndWalk_maxSteps=10000
+rndWalk_resetStepCount=true
+
+## RandomWordsEQOracle parameters
+# rndWords_minLength=100
+# rndWords_maxLength=100
+# rndWords_maxSteps=100
+
+# WMethodEQOracle-based parameters
+w_maxDepth=2
+
+# RandomWMethodQsizeEQOracle parameters
+weq_minLength=0
+weq_rndLength=4
+weq_maxTests=40000
+
+# RandomWMethodEQOracle parameters
+wrnd_minLength=0
+wrnd_rndLength=4
+wrnd_maxTests=40000

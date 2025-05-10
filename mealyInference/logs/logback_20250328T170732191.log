@@ -1,0 +1,83 @@
+2025-03-28 17:07:32 INFO Experiment |Starting round 1
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  levelMsg 
+2025-03-28 17:07:32 INFO Experiment |Starting round 2
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  palarmMsg  isRunning  levelMsg 
+2025-03-28 17:07:32 INFO Experiment |Starting round 3
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  levelMsg  highLevel  levelMsg 
+2025-03-28 17:07:32 INFO Experiment |Starting round 4
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  commandMsg  startCmd  levelMsg 
+2025-03-28 17:07:32 INFO Experiment |Starting round 5
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  levelMsg  highLevel  isStopped  levelMsg 
+2025-03-28 17:07:32 INFO Experiment |Starting round 6
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  levelMsg  highLevel  isRunning  end  levelMsg 
+2025-03-28 17:07:32 INFO Experiment |Starting round 7
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  commandMsg  startCmd  isRunning  end 
+2025-03-28 17:07:32 INFO Experiment |Starting round 8
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  levelMsg  lowLevel  isNotRunning  end 
+2025-03-28 17:07:32 INFO Experiment |Starting round 9
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  commandMsg  startCmd  isNotRunning  setReady  levelMsg 
+2025-03-28 17:07:32 INFO Experiment |Starting round 10
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  levelMsg  highLevel  isReady  setReady  end 
+2025-03-28 17:07:32 INFO Experiment |Starting round 11
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  palarmMsg  isNotRunning  setMethaneStop 
+2025-03-28 17:07:32 INFO Experiment |Starting round 12
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  levelMsg  highLevel  isReady  setReady  isReady 
+2025-03-28 17:07:32 INFO Experiment |Starting round 13
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  commandMsg  stopCmd  isNotRunning  setMethaneStop 
+2025-03-28 17:07:32 INFO Experiment |Starting round 14
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  commandMsg  stopCmd  isNotRunning  setStop  levelMsg 
+2025-03-28 17:07:32 INFO Experiment |Starting round 15
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  levelMsg  highLevel  isReady  setReady  isReady  pumpStart  levelMsg 
+2025-03-28 17:07:32 INFO Experiment |Starting round 16
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  levelMsg  highLevel  isReady  setReady  isReady  pumpStart  setRunning  levelMsg 
+2025-03-28 17:07:32 INFO Experiment |Starting round 17
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  commandMsg  stopCmd  isRunning  pumpStop  levelMsg 
+2025-03-28 17:07:32 INFO Experiment |Starting round 18
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  palarmMsg  isRunning  pumpStop  setMethaneStop 
+2025-03-28 17:07:32 INFO Experiment |Starting round 19
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  levelMsg  lowLevel  isRunning  pumpStop  setStop 
+2025-03-28 17:07:32 INFO Experiment |Starting round 20
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample
+2025-03-28 17:07:32 INFO Experiment |receiveMsg  levelMsg  lowLevel  isRunning  pumpStop  setLowStop  levelMsg 
+2025-03-28 17:07:32 INFO Experiment |Starting round 21
+2025-03-28 17:07:32 INFO Experiment |Learning
+2025-03-28 17:07:32 INFO Experiment |Searching for counterexample

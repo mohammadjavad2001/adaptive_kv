@@ -1,0 +1,40 @@
+2025-04-10 21:01:52 INFO Experiment |Starting round 1
+2025-04-10 21:01:53 INFO Experiment |Learning
+2025-04-10 21:01:53 INFO Experiment |Searching for counterexample
+2025-04-10 21:01:53 INFO Experiment |receiveMsg  levelMsg 
+2025-04-10 21:01:53 INFO Experiment |Starting round 2
+2025-04-10 21:01:53 INFO Experiment |Learning
+2025-04-10 21:01:53 INFO Experiment |Searching for counterexample
+2025-04-10 21:01:53 INFO Experiment |receiveMsg  levelMsg  highLevel  levelMsg 
+2025-04-10 21:01:53 INFO Experiment |Starting round 3
+2025-04-10 21:01:53 INFO Experiment |Learning
+2025-04-10 21:01:53 INFO Experiment |Searching for counterexample
+2025-04-10 21:01:53 INFO Experiment |receiveMsg  levelMsg  highLevel  isRunning  levelMsg 
+2025-04-10 21:01:53 INFO Experiment |Starting round 4
+2025-04-10 21:01:53 INFO Experiment |Learning
+2025-04-10 21:01:53 INFO Experiment |Searching for counterexample
+2025-04-10 21:01:53 INFO Experiment |receiveMsg  levelMsg  highLevel  isRunning  end  levelMsg 
+2025-04-10 21:01:53 INFO Experiment |Starting round 5
+2025-04-10 21:01:53 INFO Experiment |Learning
+2025-04-10 21:01:53 INFO Experiment |Searching for counterexample
+2025-04-10 21:01:53 INFO Experiment |receiveMsg  levelMsg  highLevel  isReady  setReady  levelMsg 
+2025-04-10 21:01:53 INFO Experiment |Starting round 6
+2025-04-10 21:01:53 INFO Experiment |Learning
+2025-04-10 21:01:53 INFO Experiment |Searching for counterexample
+2025-04-10 21:01:53 INFO Experiment |receiveMsg  levelMsg  highLevel  isReady  setReady  isNotReady  levelMsg 
+2025-04-10 21:01:53 INFO Experiment |Starting round 7
+2025-04-10 21:01:53 INFO Experiment |Learning
+2025-04-10 21:01:53 INFO Experiment |Searching for counterexample
+2025-04-10 21:01:53 INFO Experiment |receiveMsg  levelMsg  highLevel  isReady  setReady  isReady  pumpStart  levelMsg 
+2025-04-10 21:01:53 INFO Experiment |Starting round 8
+2025-04-10 21:01:53 INFO Experiment |Learning
+2025-04-10 21:01:53 INFO Experiment |Searching for counterexample
+2025-04-10 21:01:53 INFO Experiment |receiveMsg  levelMsg  highLevel  isReady  setReady  isReady  pumpStart  setRunning  levelMsg 
+2025-04-10 21:01:53 INFO Experiment |Starting round 9
+2025-04-10 21:01:53 INFO Experiment |Learning
+2025-04-10 21:01:53 INFO Experiment |Searching for counterexample
+2025-04-10 21:01:53 INFO Infer_LearnLib |Rounds: 9
+2025-04-10 21:01:53 INFO Infer_LearnLib |MQ [Resets]: 707
+2025-04-10 21:01:53 INFO Infer_LearnLib |MQ [Symbols]: 3893
+2025-04-10 21:01:53 INFO Infer_LearnLib |EQ [Resets]: 42943
+2025-04-10 21:01:53 INFO Infer_LearnLib |EQ [Symbols]: 262013

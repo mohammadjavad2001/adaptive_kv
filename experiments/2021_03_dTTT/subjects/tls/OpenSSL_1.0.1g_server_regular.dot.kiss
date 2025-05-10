@@ -1,0 +1,112 @@
+0 -- ApplicationData / ConnectionClosed -> 1
+0 -- ApplicationDataEmpty / Empty -> 2
+0 -- ChangeCipherSpec / Empty -> 1
+0 -- ClientHelloRSA / ServerHello & Certificate & ServerHelloDone -> 3
+0 -- ClientKeyExchange / ConnectionClosed -> 1
+0 -- EmptyCertificate / ConnectionClosed -> 1
+0 -- Finished / ConnectionClosed -> 1
+1 -- ApplicationData / ConnectionClosed -> 1
+1 -- ApplicationDataEmpty / ConnectionClosed -> 1
+1 -- ChangeCipherSpec / ConnectionClosed -> 1
+1 -- ClientHelloRSA / ConnectionClosed -> 1
+1 -- ClientKeyExchange / ConnectionClosed -> 1
+1 -- EmptyCertificate / ConnectionClosed -> 1
+1 -- Finished / ConnectionClosed -> 1
+2 -- ApplicationData / ConnectionClosed -> 1
+2 -- ApplicationDataEmpty / Empty -> 1
+2 -- ChangeCipherSpec / ConnectionClosed -> 1
+2 -- ClientHelloRSA / ConnectionClosed -> 1
+2 -- ClientKeyExchange / ConnectionClosed -> 1
+2 -- EmptyCertificate / ConnectionClosed -> 1
+2 -- Finished / ConnectionClosed -> 1
+3 -- ApplicationData / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+3 -- ApplicationDataEmpty / Empty -> 3
+3 -- ChangeCipherSpec / Empty -> 11
+3 -- ClientHelloRSA / ServerHello & Certificate & ServerHelloDone -> 14
+3 -- ClientKeyExchange / Empty -> 13
+3 -- EmptyCertificate / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+3 -- Finished / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+4 -- ApplicationData / Alert Fatal (Bad record MAC) & ConnectionClosed -> 1
+4 -- ApplicationDataEmpty / Alert Fatal (Bad record MAC) & ConnectionClosed -> 1
+4 -- ChangeCipherSpec / Alert Fatal (Bad record MAC) & ConnectionClosed -> 1
+4 -- ClientHelloRSA / Alert Fatal (Bad record MAC) & ConnectionClosed -> 1
+4 -- ClientKeyExchange / Alert Fatal (Bad record MAC) & ConnectionClosed -> 1
+4 -- EmptyCertificate / Alert Fatal (Bad record MAC) & ConnectionClosed -> 1
+4 -- Finished / Alert Fatal (Bad record MAC) & ConnectionClosed -> 1
+5 -- ApplicationData / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+5 -- ApplicationDataEmpty / Empty -> 5
+5 -- ChangeCipherSpec / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+5 -- ClientHelloRSA / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+5 -- ClientKeyExchange / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+5 -- EmptyCertificate / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+5 -- Finished / Alert Fatal (Decrypt error) & ConnectionClosed -> 1
+6 -- ApplicationData / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+6 -- ApplicationDataEmpty / Empty -> 6
+6 -- ChangeCipherSpec / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+6 -- ClientHelloRSA / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+6 -- ClientKeyExchange / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+6 -- EmptyCertificate / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+6 -- Finished / ChangeCipherSpec & Finished -> 7
+7 -- ApplicationData / ApplicationData & ConnectionClosed -> 1
+7 -- ApplicationDataEmpty / Empty -> 7
+7 -- ChangeCipherSpec / Empty -> 4
+7 -- ClientHelloRSA / Alert Fatal (Handshake failure) & ConnectionClosed -> 1
+7 -- ClientKeyExchange / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+7 -- EmptyCertificate / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+7 -- Finished / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+8 -- ApplicationData / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+8 -- ApplicationDataEmpty / Empty -> 8
+8 -- ChangeCipherSpec / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+8 -- ClientHelloRSA / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+8 -- ClientKeyExchange / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+8 -- EmptyCertificate / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+8 -- Finished / ChangeCipherSpecDecryption failed -> 9
+9 -- ApplicationData / Decryption failed -> 1
+9 -- ApplicationDataEmpty / Empty -> 9
+9 -- ChangeCipherSpec / Empty -> 15
+9 -- ClientHelloRSA / Decryption failed -> 1
+9 -- ClientKeyExchange / Decryption failed -> 1
+9 -- EmptyCertificate / Decryption failed -> 1
+9 -- Finished / Decryption failed -> 1
+10 -- ApplicationData / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+10 -- ApplicationDataEmpty / Empty -> 10
+10 -- ChangeCipherSpec / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+10 -- ClientHelloRSA / ConnectionClosed -> 1
+10 -- ClientKeyExchange / Empty -> 5
+10 -- EmptyCertificate / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+10 -- Finished / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+11 -- ApplicationData / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+11 -- ApplicationDataEmpty / Empty -> 11
+11 -- ChangeCipherSpec / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+11 -- ClientHelloRSA / ServerHello & Certificate & ServerHelloDone -> 10
+11 -- ClientKeyExchange / Empty -> 8
+11 -- EmptyCertificate / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+11 -- Finished / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+12 -- ApplicationData / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+12 -- ApplicationDataEmpty / Empty -> 12
+12 -- ChangeCipherSpec / Empty -> 5
+12 -- ClientHelloRSA / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+12 -- ClientKeyExchange / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+12 -- EmptyCertificate / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+12 -- Finished / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+13 -- ApplicationData / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+13 -- ApplicationDataEmpty / Empty -> 13
+13 -- ChangeCipherSpec / Empty -> 6
+13 -- ClientHelloRSA / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+13 -- ClientKeyExchange / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+13 -- EmptyCertificate / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+13 -- Finished / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+14 -- ApplicationData / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+14 -- ApplicationDataEmpty / Empty -> 14
+14 -- ChangeCipherSpec / Empty -> 10
+14 -- ClientHelloRSA / ConnectionClosed -> 1
+14 -- ClientKeyExchange / Empty -> 12
+14 -- EmptyCertificate / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+14 -- Finished / Alert Fatal (Unexpected message) & ConnectionClosed -> 1
+15 -- ApplicationData / Decryption failed -> 1
+15 -- ApplicationDataEmpty / Decryption failed -> 1
+15 -- ChangeCipherSpec / Decryption failed -> 1
+15 -- ClientHelloRSA / Decryption failed -> 1
+15 -- ClientKeyExchange / Decryption failed -> 1
+15 -- EmptyCertificate / Decryption failed -> 1
+15 -- Finished / Decryption failed -> 1
