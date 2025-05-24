@@ -4,10 +4,8 @@ import br.usp.icmc.labes.mealyInference.utils.EquivEQOracle.WpMethodHypEQOracle;
 import br.usp.icmc.labes.mealyInference.utils.Infer_LearnLib;
 import br.usp.icmc.labes.mealyInference.utils.LearnLibProperties;
 import br.usp.icmc.labes.mealyInference.utils.Utils;
-// import de.learnlib.algorithms.kv.KearnsVaziraniMealy;
-// import de.learnlib.algorithms.kv.KearnsVaziraniMealyBuilder;
-import de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealy;
-import de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealyBuilder;
+import de.learnlib.algorithms.kv.KearnsVaziraniMealy;
+import de.learnlib.algorithms.kv.KearnsVaziraniMealyBuilder;
 
 import de.learnlib.api.SUL;
 // import de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealyBuilder;
@@ -26,9 +24,9 @@ import de.learnlib.oracle.equivalence.WMethodEQOracle;
 import de.learnlib.oracle.equivalence.WpMethodEQOracle;
 import de.learnlib.oracle.equivalence.mealy.RandomWalkEQOracle;
 import de.learnlib.oracle.membership.SULOracle;
-import de.learnlib.util.Experiment;
-// import de.learnlib.algorithms.kv.Experiment;
-// import de.learnlib.algorithms.kv.KearnsVaziraniMealyBuilder;
+
+import de.learnlib.algorithms.kv.Experiment;
+import de.learnlib.algorithms.kv.KearnsVaziraniMealyBuilder;
 import de.learnlib.util.statistics.SimpleProfiler;
 import net.automatalib.automata.transducers.MealyMachine;
 import net.automatalib.automata.transducers.impl.compact.CompactMealy;
@@ -42,7 +40,6 @@ import net.automatalib.visualization.VisualizationHelper;
 import net.automatalib.words.Word;
 import org.apache.commons.cli.*;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import java.io.File;
 import java.io.File;
 import java.io.IOException;
 import java.sql.Timestamp;
@@ -75,6 +72,7 @@ import java.io.InputStream;
 import net.automatalib.commons.util.settings.AbstractClassPathFileSource;
 import net.automatalib.commons.util.settings.AbstractClassPathFileSource;
 import java.util.*;
+import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.automatalib.words.WordBuilder;
@@ -82,21 +80,23 @@ import net.automatalib.words.impl.Alphabets;
 import java.util.*;
 import net.automatalib.words.Alphabet;
 import net.automatalib.graphs.concepts.GraphViewable;
-
 import net.automatalib.visualization.Visualization;
 import net.automatalib.visualization.VisualizationHelper.EdgeAttrs;
-
 import de.learnlib.datastructure.discriminationtree.MultiDTree;
 import de.learnlib.datastructure.discriminationtree.model.AbstractWordBasedDTNode;
 import de.learnlib.algorithms.kv.StateInfo;
 import net.automatalib.graphs.concepts.GraphViewable;
 import de.learnlib.filter.statistic.oracle.JointCounterOracle;
-
 import de.learnlib.filter.statistic.oracle.CounterSymbolQueryOracle;
 
 
 public class hi {
 
+	// Add static variable to store tree between method calls
+	private static MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = null;
+	
+	// Add static ArrayList to store all input alphabets
+	private static ArrayList<String> allInputAlphabets = new ArrayList<>();
 
 	private static int ExtractValue(String string_1) {
 		// TODO Auto-generated method stub
@@ -110,7 +110,7 @@ public class hi {
 		return value_1;
 	}
 // Method to traverse and print the tree
-private static <I, O, D> void traverseAndPrintTree(
+	private static <I, O, D> void traverseAndPrintTree(
         AbstractWordBasedDTNode<I, O, D> node, 
         String indent, 
         boolean isLast) {
@@ -333,7 +333,6 @@ private static <I, O, D> void traverseAndPrintTree(
 		}	 else if (fileName.endsWith("dot")) {
 			try {
 				mealy = parser.readModel(fsm_file).model;
-				System.out.println("jjjjjjjjjj");
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -386,32 +385,34 @@ private static <I, O, D> void traverseAndPrintTree(
 
 		return eqOracle;
 	}
+	public static void learnalgo(File productFile_2, String[] args,int product) throws Exception {
 
+	}
 	public static <I, O> void main(String[] args) throws Exception {
 
 //         if (args.length < 1) {
 //             System.err.println("Usage: LearnMealyWithKV <dot-file>");
 //             System.exit(1);
 //         }
+		String[] a54= {"E:\\learning\\Projectpayan\\software\\SPL_Learning\\experiments\\Minepump_SPL\\products_3wise"
+			,"E:\\learning\\Projectpayan\\software\\SPL_Learning\\experiments\\Minepump_SPL\\products_3wise"};
+		String[] a213={"00001_fsm.dot","00004_fsm.dot"};
 		
-		System.out.println("eeeeeeeeee");
-		// File productFile_2 = new File(
-		// 		"E:\\learning\\Projectpayan\\software\\SPL_Learning\\experiments\\BCS_SPL\\products_3wise",
-		// 		"00001_fsm.dot");
-		File productFile_2 = new File(
-				"E:\\learning\\Projectpayan\\software\\SPL_Learning\\experiments\\Minepump_SPL\\products_3wise",
-				"00001_fsm.dot");
-		System.out.print("Fvvvvvv");
-		CompactMealy<String, Word<String>> mealyMachine;
-		mealyMachine = LoadMealy(productFile_2);
-		System.out.print(mealyMachine);
+		for(int i=0;i<2;i++){
+			
+			File productFile_2 = new File(a54[i],a213[i]);
+			System.out.println(productFile_2);
+			System.out.print("Fvvvvvv");
+			CompactMealy<String, Word<String>> mealyMachine;
+			mealyMachine = LoadMealy(productFile_2);
+			System.out.print(mealyMachine);
 
 		// try {
 		// mealyMachine = loadMealyMachineFromDot3(productFile_2);
 		// } catch (Exception e) {
 		// e.printStackTrace();
 		// }
-
+		
 		CommandLineParser parser = new BasicParser();
 		// create the Options
 		Options options = createOptions();
@@ -429,7 +430,7 @@ private static <I, O, D> void traverseAndPrintTree(
 		SUL<String, Word<String>> mq_sul = mq_rst;
 		// random seed
 		Random rnd_seed = new Random(tstamp);
-
+		
 		// timestamp
 		Timestamp timestamp = new Timestamp(tstamp);
 
@@ -467,26 +468,88 @@ private static <I, O, D> void traverseAndPrintTree(
 		
 				// de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealyBuilder<String, Word<String>> builder = new de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealyBuilder<String, Word<String>>();
 
+
+
+		Alphabet<String> alphbe22 = mealyMachine.getInputAlphabet();
+		
+		// Get the current product's input alphabet
+		Alphabet<String> productAlphabet = mealyMachine.getInputAlphabet();
+		
+		// Add all symbols from this product's alphabet to our combined collection
+		System.out.println("\nProduct " + i + " alphabet contains " + productAlphabet.size() + " symbols:");
+		for (String symbol : productAlphabet) {
+			System.out.println("  - " + symbol);
+			// Only add if it's not already in our collection (avoid duplicates)
+			if (!allInputAlphabets.contains(symbol)) {
+				System.out.println("EEE"+symbol);
+				allInputAlphabets.add(symbol);
+			}
+		}
+		
+		System.out.println("Combined alphabet now has " + allInputAlphabets.size() + " unique symbols");
+		Alphabet<String> combinedAlphabet = Alphabets.fromCollection(allInputAlphabets);
+
+
+		for(String w23:combinedAlphabet){
+			System.out.println("=== +"+ w23);
+		}
 		
 		KearnsVaziraniMealyBuilder<String, Word<String>> builder = new KearnsVaziraniMealyBuilder<String, Word<String>>();
-		builder.setAlphabet(mealyMachine.getInputAlphabet());
 		builder.setOracle(mqOracle);
-
+		builder.setAlphabet(combinedAlphabet); 
 		// 333333333333333333333333333333333333333333333333333333333333
 		// builder.setDiscriminationTree(null);
 		// 333333333333333333333333333333333333333333333333333333333333
 		// Set up the Kearns-Vazirani learner
 		// new MultiDTree<>(oracle);
-		builder.setAlphabet(mealyMachine.getInputAlphabet()); 
-		KearnsVaziraniMealy<String, Word<String>> learner = builder.create();
+
+		
+		Alphabet<String> a413 = mealyMachine.getInputAlphabet();
+		System.out.println();
+		
+		//settttttt
+		KearnsVaziraniMealy<String, Word<String>> learner=null;
+		if (i==0){
+
+			learner = builder.withAlphabet(combinedAlphabet).create(null);
+		}
+		
+		else{
+			learner = builder.withAlphabet(productAlphabet).create(tree_round2);
+			builder.setAlphabet(productAlphabet); 
+
+			System.out.println("ROUND@@@@@@INIT DISCRIMINATION TREE");
+			MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> treeinit = learner.getDiscriminationTree();
+			Visualization.visualize(treeinit, true);
+			System.out.println("RRRRRRRRRRRRRRRRRRRR");
+		}
+		// if (i == 1 && tree_round2 != null) {
+				// System.out.println("BBBBBBBBB");
+			// builder.setDiscriminationTree(tree_round2);
+			// builder.setDiscriminationTree(tree_round2);
+// 
+// 
+
+
+		// }
+		//settttttt
+
 		// MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> discriminationTree = new MultiDTree<I, Word<O>, StateInfo<I, Word<O>>>;
 		Experiment.MealyExperiment<String, Word<String>> experiment = new Experiment.MealyExperiment<String, Word<String>>(
-				learner, eqOracle, mealyMachine.getInputAlphabet());
-		// Run the experiment
+			learner, eqOracle, combinedAlphabet);
+			// Run the experiment
 		int[] statistics_array=new int[6];
-		experiment.run();
-		// MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> a2 = experiment.getDiscrtree();
-				// statistics array
+		if (i==0){
+			experiment.run(true);
+
+		}
+		else{
+			experiment.run(false);
+		}
+		
+			// statistics array
+		MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree = learner.getDiscriminationTree();
+		tree_round2 = experiment.getDiscrtree();
 		
 		statistics_array[0] += experiment.getRounds().getCount();
 		statistics_array[1] += ExtractValue(mq_rst.getStatisticalData().getSummary());
@@ -498,8 +561,8 @@ private static <I, O, D> void traverseAndPrintTree(
 		System.out.println(eq_rst.getStatisticalData());
 		System.out.println(eq_sym.getStatisticalData());
 
-		for (int i=0;i<5;i++){
-			System.out.println("vaa"+statistics_array[i]);
+		for (int j=0;j<5;j++){
+			System.out.println("vaa"+statistics_array[j]);
 		}
 		
 		// Output results
@@ -538,42 +601,6 @@ private static <I, O, D> void traverseAndPrintTree(
 //		Visualization.visualize(filteredGraph, true);
 		
 //		*/777777777777777777777777777777777777
-		MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree = learner.getDiscriminationTree();
-
-		// builder.setDiscriminationTree(tree);
-
-		//		MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree = learner.getDiscriminationTree().asNormalGraph();
-		// Visualization.visualize(tree, new VisualizationHelper<AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>, Map.Entry<Word<Word<String>>, AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>>> () {
-		//     @Override
-		//     public boolean getNodeProperties(AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> node, Map<String, String> properties) {
-		//         if (node.isLeaf()) {
-		//             StateInfo<String, Word<Word<String>>> state = node.getData();
-		//             // Use toString() instead of getHypothesisState()
-		//             properties.put(NodeAttrs.LABEL, "State: " + state.toString());
-		//             properties.put(NodeAttrs.SHAPE, NodeShapes.BOX);
-		//         } else {
-		//             properties.put(NodeAttrs.LABEL, "Test: " + node.getDiscriminator());
-		//             properties.put(NodeAttrs.SHAPE, NodeShapes.OVAL);
-		//         }
-		//         return true;
-		//     }
-		    
-		//     @Override
-		//     public boolean getEdgeProperties(AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> src, 
-		//                                     Map.Entry<Word<Word<String>>, AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>>> edge, 
-		//                                     AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tgt, 
-		//                                     Map<String, String> properties) {
-		//         properties.put(EdgeAttrs.LABEL, edge.getKey().toString());
-		//         return true;
-		//     }
-		// });
-//		Visualization.visualize(((GraphViewable) tree).graphView(), true);
-		// Visualization.visualize(, true);
-
-		// Get the discrimination tree
-
-		// The AbstractDiscriminationTree class already implements Graph interface
-		// So we can directly visualize it
 		System.out.println("********************Visualizing discrimination tree********************");
 		Visualization.visualize(tree, true);
 		// Print the tree structure
@@ -593,10 +620,12 @@ private static <I, O, D> void traverseAndPrintTree(
 		
 		System.out.println();
 		Alphabet<String> alphabet = mealyMachine.getInputAlphabet();
-		MealyMachine<?, String, ?, Word<String>> hypothesis = experiment.getFinalHypothesis();
+
 		CompactMealy<String, Word<String>> learnedModel = new CompactMealy<>(alphabet);
 		MealyMachine<?, String, ?, Word<String>> finalHyp = experiment.getFinalHypothesis();
-		
+
+
+	
 		// Output statistics
 		System.out.println("Learning completed.");
 		System.out.println("Statistics:");
@@ -631,7 +660,47 @@ private static <I, O, D> void traverseAndPrintTree(
         Visualization.visualize(mealyMachine, alphabet);
 		
 	}
-
+	//lllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll
+	System.out.println("YYYYYYYYYYYYYYYYYYYYYYYY");
+	for (String symbol : allInputAlphabets) {
+		System.out.println(symbol);
+	}
+	
+	// Create a combined Alphabet<String> with all collected symbols
+	System.out.println("\n========================================================");
+	System.out.println("CREATING COMBINED ALPHABET FROM ALL PRODUCTS");
+	System.out.println("========================================================");
+	
+	// Convert our ArrayList of collected symbols to an Alphabet<String>
+	Alphabet<String> combinedAlphabet2 = Alphabets.fromCollection(allInputAlphabets);
+	
+	System.out.println("Combined alphabet created successfully!");
+	System.out.println("It contains " + combinedAlphabet2.size() + " unique symbols:");
+	
+	// Print all symbols in the combined alphabet
+	int count = 1;
+	System.out.println("VVVVVVVVVVVVVVV");
+	for (String symbol : combinedAlphabet2) {
+		System.out.println(count + ". " + symbol);
+		count++;
+	}
+	
+	// Create a Mealy machine with the combined alphabet using our helper method
+	// CompactMealy<String, Word<String>> combinedMealyMachine = createMealyWithCombinedAlphabet();
+	
+	// System.out.println("\nCreated a new Mealy machine with the combined alphabet");
+	// System.out.println("Initial state: " + combinedMealyMachine.getInitialState());
+	// System.out.println("Alphabet size: " + combinedMealyMachine.getInputAlphabet().size() + " symbols");
+	
+		// File productFile_2 = new File(
+				// "E:\\learning\\Projectpayan\\software\\SPL_Learning\\experiments\\BCS_SPL\\products_3wise",
+				// "00001_fsm.dot");
+	
+		
+		// Create file and call learnalgo
+		
+	}
+	
 	private static Options createOptions() {
 		// create the Options 
 		Options options = new Options();
@@ -653,6 +722,27 @@ private static <I, O, D> void traverseAndPrintTree(
 		options.addOption(INFO, true, "Add extra information as string");
 		options.addOption(DIR, true, "Directory of the SPL products");
 		options.addOption(FM, true, "Feature model");
+		// File productFile_2 = new File(
+				// "E:\\learning\\Projectpayan\\software\\SPL_Learning\\experiments\\Minepump_SPL\\products_3wise",
+				// "00001_fsm.dot");
 		return options;
 	}
+
+	/**
+	 * Creates an Alphabet<String> from the collected input symbols and builds a Mealy machine with it
+	 * 
+	//  * @return A new Mealy machine with the combined alphabet
+	//  */
+	// private static CompactMealy<String, Word<String>> createMealyWithCombinedAlphabet() {
+	// 	// Convert our ArrayList of collected symbols to an Alphabet<String>
+	// 	Alphabet<String> combinedAlphabet = Alphabets.fromCollection(allInputAlphabets);
+		
+	// 	// Create a Mealy machine with this combined alphabet
+	// 	CompactMealy<String, Word<String>> combinedMealyMachine = new CompactMealy<>(combinedAlphabet);
+		
+	// 	// Add an initial state
+	// 	int initialState = combinedMealyMachine.addInitialState();
+		
+	// 	return combinedMealyMachine;
+	// }
 }

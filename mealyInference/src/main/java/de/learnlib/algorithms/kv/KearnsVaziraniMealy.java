@@ -74,14 +74,16 @@ public class KearnsVaziraniMealy<I, O>
                                MembershipOracle<I, Word<O>> oracle,
                                boolean repeatedCounterexampleEvaluation,
                                AcexAnalyzer counterexampleAnalyzer,
-                               MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> disDTree) {
+                               MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> tree) {
         this.alphabet = alphabet;
         this.hypothesis = new CompactMealy<>(alphabet);
         this.oracle = oracle;
         this.repeatedCounterexampleEvaluation = repeatedCounterexampleEvaluation;
-        this.discriminationTree = disDTree;
-        System.out.println("TTTTTTTTTTTTTTTT"+discriminationTree+"BBBBBBBBBBBBBBBBBB");
         this.ceAnalyzer = counterexampleAnalyzer;
+        if (tree == null)
+            this.discriminationTree = new MultiDTree<>(oracle);
+        else
+            this.discriminationTree =  tree;
     }
 
     @Override
@@ -112,7 +114,9 @@ public class KearnsVaziraniMealy<I, O>
         }
         return hypothesis;
     }
-
+    public void setDiscriminationTree(MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> discriminationTree) {
+        this.discriminationTree = discriminationTree;
+    }
     public MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> getDiscriminationTree() {
         return discriminationTree;
     }

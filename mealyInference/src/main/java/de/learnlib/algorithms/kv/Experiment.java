@@ -62,12 +62,13 @@ public class Experiment<A extends Object> {
     public void setDiscrtree(MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> discrtree) {
         this.discrtree = discrtree;
     }
-    public A run() {
+    public A run(boolean first) {
+        
         if (this.finalHypothesis != null) {
             throw new IllegalStateException("Experiment has already been run");
         }
 
-        finalHypothesis = impl.run();
+        finalHypothesis = impl.run(first);
         return finalHypothesis;
     }
 
@@ -128,7 +129,7 @@ public class Experiment<A extends Object> {
             this.inputs = inputs;
         }
 
-        public A run() {
+        public A run(boolean first) {
             rounds.increment();
             LOGGER.logPhase("Starting round " + rounds.getCount());
             System.out.println("Starting round " + rounds.getCount());
@@ -142,7 +143,7 @@ public class Experiment<A extends Object> {
             while (true) {
                 final A hyp = learningAlgorithm.getHypothesisModel();
 		        //visualize fsm 
-                Visualization.visualize(((GraphViewable) hyp).graphView(), true);
+                // Visualization.visualize(((GraphViewable) hyp).graphView(), true);
                 KearnsVaziraniMealy<String, Word<String>> kvLearner = (KearnsVaziraniMealy<String, Word<String>>) learningAlgorithm;
                 //visualize discrimintation tree
                 MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree = kvLearner.getDiscriminationTree();
@@ -168,10 +169,17 @@ public class Experiment<A extends Object> {
                 rounds.increment();
                 LOGGER.logPhase("Starting round " + rounds.getCount());
                 System.out.println("Starting round " + rounds.getCount());
-                if(rounds.getCount()==2){
+                if(rounds.getCount()==4 && first){
                     MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = kvLearner.getDiscriminationTree();
-
                     setDiscrtree(tree_round2);
+                    return hyp;
+
+                    // tree_round2.getEdgesBetween(null, null);
+                    // MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> temp_tree= new MultiDTree<>(null);
+                    // kvLearner.getDiscriminationTree();
+                    // System.out.println("UUUUUUUUUUUUUUUUUUU");
+                    // Visualization.visualize((tree_round2), true);
+                    // System.out.println("MJEJEJEJEJEEJEJ");
                 }
                 LOGGER.logPhase("Learning");
 
