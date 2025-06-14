@@ -394,8 +394,8 @@ public class hi {
 //             System.err.println("Usage: LearnMealyWithKV <dot-file>");
 //             System.exit(1);
 //         }
-		String[] a54= {"E:\\learning\\Projectpayan\\software\\SPL_Learning\\experiments\\Minepump_SPL\\products_3wise"
-			,"E:\\learning\\Projectpayan\\software\\SPL_Learning\\experiments\\Minepump_SPL\\products_3wise"};
+		String[] a54= {".\\experiments\\Minepump_SPL\\products_3wise"
+			,".\\experiments\\Minepump_SPL\\products_3wise"};
 		String[] a213={"00001_fsm.dot","00004_fsm.dot"};
 		
 		for(int i=0;i<2;i++){
@@ -543,7 +543,7 @@ public class hi {
 		
 		int[] statistics_array=new int[6];
 		if (i==0){
-			
+
 			experiment.run(true);
 
 		}
