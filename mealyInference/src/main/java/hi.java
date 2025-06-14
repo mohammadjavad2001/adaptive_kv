@@ -23,7 +23,7 @@ import de.learnlib.oracle.equivalence.RandomWordsEQOracle;
 import de.learnlib.oracle.equivalence.WMethodEQOracle;
 import de.learnlib.oracle.equivalence.WpMethodEQOracle;
 import de.learnlib.oracle.equivalence.mealy.RandomWalkEQOracle;
-import de.learnlib.oracle.membership.SULOracle;
+import de.learnlib.ds.SULOracle;
 
 import de.learnlib.algorithms.kv.Experiment;
 import de.learnlib.algorithms.kv.KearnsVaziraniMealyBuilder;
@@ -488,7 +488,7 @@ public class hi {
 		
 		System.out.println("Combined alphabet now has " + allInputAlphabets.size() + " unique symbols");
 		Alphabet<String> combinedAlphabet = Alphabets.fromCollection(allInputAlphabets);
-
+		
 
 		for(String w23:combinedAlphabet){
 			System.out.println("=== +"+ w23);
@@ -511,13 +511,15 @@ public class hi {
 		KearnsVaziraniMealy<String, Word<String>> learner=null;
 		if (i==0){
 
-			learner = builder.withAlphabet(combinedAlphabet).create(null);
+			learner = builder.withAlphabet(productAlphabet).create(null);
 		}
 		
 		else{
-			learner = builder.withAlphabet(productAlphabet).create(tree_round2);
-			builder.setAlphabet(productAlphabet); 
-
+			learner = builder.withAlphabet(combinedAlphabet).create(tree_round2);
+			// builder.setAlphabet(productAlphabet); 
+			System.out.println("Learner Alphabet Symbols++++++++++++");
+			System.out.println(learner.get_alphabet_symbol());
+			
 			System.out.println("ROUND@@@@@@INIT DISCRIMINATION TREE");
 			MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> treeinit = learner.getDiscriminationTree();
 			Visualization.visualize(treeinit, true);
@@ -538,15 +540,18 @@ public class hi {
 		Experiment.MealyExperiment<String, Word<String>> experiment = new Experiment.MealyExperiment<String, Word<String>>(
 			learner, eqOracle, combinedAlphabet);
 			// Run the experiment
+		
 		int[] statistics_array=new int[6];
 		if (i==0){
+			
 			experiment.run(true);
 
 		}
 		else{
-			experiment.run(false);
+
+			experiment.run(true);
 		}
-		
+	
 			// statistics array
 		MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree = learner.getDiscriminationTree();
 		tree_round2 = experiment.getDiscrtree();
@@ -557,10 +562,7 @@ public class hi {
 		statistics_array[3] += ExtractValue(eq_rst.getStatisticalData().getSummary());
 		statistics_array[4] += ExtractValue(eq_sym.getStatisticalData().getSummary());
 		System.out.println(mq_rst.getStatisticalData());
-		System.out.println(mq_sym.getStatisticalData());
-		System.out.println(eq_rst.getStatisticalData());
-		System.out.println(eq_sym.getStatisticalData());
-
+		
 		for (int j=0;j<5;j++){
 			System.out.println("vaa"+statistics_array[j]);
 		}

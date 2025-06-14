@@ -90,7 +90,9 @@ public class KearnsVaziraniMealy<I, O>
     public void startLearning() {
         initialize();
     }
-
+    public Alphabet<I> get_alphabet_symbol(){
+        return this.alphabet;
+    }
     @Override
     public boolean refineHypothesis(DefaultQuery<I, Word<O>> ceQuery) {
         if (hypothesis.size() == 0) {
