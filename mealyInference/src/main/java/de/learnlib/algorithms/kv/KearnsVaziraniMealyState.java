@@ -1,8 +1,8 @@
 package de.learnlib.algorithms.kv;
 
 
-import de.learnlib.algorithms.kv.StateInfo;
-import de.learnlib.datastructure.discriminationtree.MultiDTree;
+import de.learnlib.ds.StateInfo;
+import de.learnlib.ds.MultiDTree;
 import net.automatalib.automata.transducers.impl.compact.CompactMealy;
 import net.automatalib.words.Word;
 import java.io.Serializable;

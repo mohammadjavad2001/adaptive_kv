@@ -23,17 +23,20 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 
-import com.github.misberner.buildergen.annotations.GenerateBuilder;
+import de.learnlib.algorithms.kv.GenerateBuilder;
+
+
+
 import de.learnlib.acex.AcexAnalyzer;
 import de.learnlib.acex.analyzers.AcexAnalyzers;
 import de.learnlib.acex.impl.AbstractBaseCounterexample;
-import de.learnlib.algorithms.kv.StateInfo;
+import de.learnlib.ds.StateInfo;
 import de.learnlib.api.Resumable;
 import de.learnlib.api.algorithm.LearningAlgorithm.MealyLearner;
-import de.learnlib.api.oracle.MembershipOracle;
+import de.learnlib.ds.MembershipOracle;
 import de.learnlib.api.query.DefaultQuery;
-import de.learnlib.datastructure.discriminationtree.MultiDTree;
-import de.learnlib.datastructure.discriminationtree.model.AbstractWordBasedDTNode;
+import de.learnlib.ds.MultiDTree;
+import de.learnlib.ds.AbstractWordBasedDTNode;
 import de.learnlib.datastructure.discriminationtree.model.LCAInfo;
 import de.learnlib.util.mealy.MealyUtil;
 import net.automatalib.SupportsGrowingAlphabet;
@@ -45,11 +48,12 @@ import net.automatalib.words.Word;
 import net.automatalib.words.impl.Alphabets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.lang.reflect.Field;
 
 // import de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealyState;
 import de.learnlib.algorithms.kv.KearnsVaziraniMealyState;
 /**
-
+ * @param <A>
  * @param <I>
  *         input symbol type
  * @param <O>
@@ -58,7 +62,7 @@ import de.learnlib.algorithms.kv.KearnsVaziraniMealyState;
  * @author Malte Isberner
  */
 
-public class KearnsVaziraniMealy<I, O>
+public class KearnsVaziraniMealy<A, I, O>
         implements MealyLearner<I, O>, SupportsGrowingAlphabet<I>, Resumable<KearnsVaziraniMealyState<I, O>> {
 
     private final Alphabet<I> alphabet;
@@ -82,17 +86,36 @@ public class KearnsVaziraniMealy<I, O>
         this.ceAnalyzer = counterexampleAnalyzer;
         if (tree == null)
             this.discriminationTree = new MultiDTree<>(oracle);
-        else
+        else{
+            // System.out.println("OOOOOOOOOOOOOOOOOOOOOOOOOO");
+            // Class<?> clazz = tree.getClass();
+            // System.out.println("---- " + clazz.getName() + " ----");
+    
+            // // Loop over all declared fields (incl. private/protected)
+            // for (Field field : clazz.getDeclaredFields()) {
+            //     System.out.println("BBBBBBBBBBB"+field);
+            //     field.setAccessible(true);        // bypass visibility checks
+            //     String name  = field.getName();
+            //     Class<?> type = field.getType();
+            //     Object value;
+            //     try {
+            //         value = field.get(tree);       // read the field’s value
+            //     } catch (IllegalAccessException e) {
+            //         value = "<inaccessible>";
+            //     }
+            //     System.out.println("WWWWWWWWWWWWW");
+            //     System.out.printf("%s (%s) = %s%n", name, type.getSimpleName(), value);
+            // }
             this.discriminationTree =  tree;
+        }
+        
     }
 
     @Override
     public void startLearning() {
         initialize();
     }
-    public Alphabet<I> get_alphabet_symbol(){
-        return this.alphabet;
-    }
+
     @Override
     public boolean refineHypothesis(DefaultQuery<I, Word<O>> ceQuery) {
         if (hypothesis.size() == 0) {
@@ -122,7 +145,9 @@ public class KearnsVaziraniMealy<I, O>
     public MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> getDiscriminationTree() {
         return discriminationTree;
     }
-
+    public Alphabet<I> get_alphabet_symbol(){
+        return this.alphabet;
+    }
     private boolean refineHypothesisSingle(Word<I> input, Word<O> output) {
         int inputLen = input.length();
 
@@ -260,7 +285,6 @@ public class KearnsVaziraniMealy<I, O>
         discriminationTree.getRoot().setData(init);
         init.dtNode = discriminationTree.getRoot();
         initState(init);
-    
     }
 
     private void initState(StateInfo<I, Word<O>> stateInfo) {
@@ -298,6 +322,7 @@ public class KearnsVaziraniMealy<I, O>
     private List<StateInfo<I, Word<O>>> sift(List<AbstractWordBasedDTNode<I, Word<O>, StateInfo<I, Word<O>>>> starts,
                                              List<Word<I>> prefixes) {
 
+        System.out.println("===================================================>"+prefixes);
         final List<AbstractWordBasedDTNode<I, Word<O>, StateInfo<I, Word<O>>>> leaves =
                 discriminationTree.sift(starts, prefixes);
         final List<StateInfo<I, Word<O>>> result = new ArrayList<>(leaves.size());

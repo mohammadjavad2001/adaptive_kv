@@ -6,78 +6,82 @@
  */
 
  package de.learnlib.algorithms.kv;
- import de.learnlib.datastructure.discriminationtree.MultiDTree;
+ import de.learnlib.ds.MultiDTree;
  import net.automatalib.words.Alphabet;
  import de.learnlib.algorithms.kv.KearnsVaziraniMealy;
  import net.automatalib.words.Word;
+ import de.learnlib.ds.StateInfo;
  public final class KearnsVaziraniMealyBuilder<
+         A extends java.lang.Object,
          I extends java.lang.Object,
          O extends java.lang.Object> {
  
     private static<
+            A extends java.lang.Object,
             I extends java.lang.Object,
-            O extends java.lang.Object> de.learnlib.algorithms.kv.KearnsVaziraniMealy<I,O> $createDispatch(
+            O extends java.lang.Object> de.learnlib.algorithms.kv.KearnsVaziraniMealy<A, I, O> $createDispatch(
         net.automatalib.words.Alphabet<I> alphabet,
-        de.learnlib.api.oracle.MembershipOracle<I,net.automatalib.words.Word<O>> oracle,
+        de.learnlib.ds.MembershipOracle<I,net.automatalib.words.Word<O>> oracle,
         boolean repeatedCounterexampleEvaluation,
         de.learnlib.acex.AcexAnalyzer counterexampleAnalyzer,
         MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> dsicTree 
         ) {
-        return new KearnsVaziraniMealy<I,O>(
+        return new KearnsVaziraniMealy<A, I, O>(
            alphabet,
            oracle,
            repeatedCounterexampleEvaluation,
            counterexampleAnalyzer,
-           dsicTree);
+           dsicTree
+           );
     }
      private net.automatalib.words.Alphabet<I> alphabet;
-     private de.learnlib.api.oracle.MembershipOracle<I,net.automatalib.words.Word<O>> oracle;
+     private de.learnlib.ds.MembershipOracle<I,net.automatalib.words.Word<O>> oracle;
      private boolean repeatedCounterexampleEvaluation;
      private de.learnlib.acex.AcexAnalyzer counterexampleAnalyzer;
-     protected MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> discriminationTree;   
+     protected MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> discriminationTree;
+     
      public void setDiscriminationTree(MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> discriminationTree) {
-        this.discriminationTree = discriminationTree;
-    }
-    
-    public KearnsVaziraniMealyBuilder<I, O> withDiscriminationTree(MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> discriminationTree) {
-        this.discriminationTree = discriminationTree;
-        return this;
-    }
+         this.discriminationTree = discriminationTree;
+     }
+     
+     public KearnsVaziraniMealyBuilder<A, I, O> withDiscriminationTree(MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> discriminationTree) {
+         this.discriminationTree = discriminationTree;
+         return this;
+     }
 
-    public KearnsVaziraniMealyBuilder() {
-        this.repeatedCounterexampleEvaluation = de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealy.BuilderDefaults.repeatedCounterexampleEvaluation();
-        this.counterexampleAnalyzer = de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealy.BuilderDefaults.counterexampleAnalyzer();
-    }
-
-    public KearnsVaziraniMealy<I,O> create(MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> tree) {
-        return $createDispatch(
-            this.alphabet,
-            this.oracle,
-            this.repeatedCounterexampleEvaluation,
-            this.counterexampleAnalyzer,
-            tree
-       
-            );
-    }
-    
+     public KearnsVaziraniMealyBuilder() {
+         this.repeatedCounterexampleEvaluation = de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealy.BuilderDefaults.repeatedCounterexampleEvaluation();
+         this.counterexampleAnalyzer = de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealy.BuilderDefaults.counterexampleAnalyzer();
+     }
+ 
+     public <A> KearnsVaziraniMealy<A, I, O> create(MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> tree) {
+         return $createDispatch(
+             this.alphabet,
+             this.oracle,
+             this.repeatedCounterexampleEvaluation,
+             this.counterexampleAnalyzer,
+             tree);
+             
+     }
+     
      public net.automatalib.words.Alphabet<I> getAlphabet() {
          return this.alphabet;
      }
      public void setAlphabet(net.automatalib.words.Alphabet<I> alphabet) {
          this.alphabet = alphabet;
      }
-     public KearnsVaziraniMealyBuilder<I, O> withAlphabet(net.automatalib.words.Alphabet<I> alphabet) {
+     public KearnsVaziraniMealyBuilder<A, I, O> withAlphabet(net.automatalib.words.Alphabet<I> alphabet) {
          this.alphabet = alphabet;
          return this;
      } 
  
-     public de.learnlib.api.oracle.MembershipOracle<I,net.automatalib.words.Word<O>> getOracle() {
+     public de.learnlib.ds.MembershipOracle<I,net.automatalib.words.Word<O>> getOracle() {
          return this.oracle;
      }
-     public void setOracle(de.learnlib.api.oracle.MembershipOracle<I,net.automatalib.words.Word<O>> oracle) {
+     public void setOracle(de.learnlib.ds.MembershipOracle<I,net.automatalib.words.Word<O>> oracle) {
          this.oracle = oracle;
      }
-     public KearnsVaziraniMealyBuilder<I, O> withOracle(de.learnlib.api.oracle.MembershipOracle<I,net.automatalib.words.Word<O>> oracle) {
+     public KearnsVaziraniMealyBuilder<A, I, O> withOracle(de.learnlib.ds.MembershipOracle<I,net.automatalib.words.Word<O>> oracle) {
          this.oracle = oracle;
          return this;
      } 
@@ -88,7 +92,7 @@
      public void setRepeatedCounterexampleEvaluation(boolean repeatedCounterexampleEvaluation) {
          this.repeatedCounterexampleEvaluation = repeatedCounterexampleEvaluation;
      }
-     public KearnsVaziraniMealyBuilder<I, O> withRepeatedCounterexampleEvaluation(boolean repeatedCounterexampleEvaluation) {
+     public KearnsVaziraniMealyBuilder<A, I, O> withRepeatedCounterexampleEvaluation(boolean repeatedCounterexampleEvaluation) {
          this.repeatedCounterexampleEvaluation = repeatedCounterexampleEvaluation;
          return this;
      } 
@@ -99,7 +103,7 @@
      public void setCounterexampleAnalyzer(de.learnlib.acex.AcexAnalyzer counterexampleAnalyzer) {
          this.counterexampleAnalyzer = counterexampleAnalyzer;
      }
-     public KearnsVaziraniMealyBuilder<I, O> withCounterexampleAnalyzer(de.learnlib.acex.AcexAnalyzer counterexampleAnalyzer) {
+     public KearnsVaziraniMealyBuilder<A, I, O> withCounterexampleAnalyzer(de.learnlib.acex.AcexAnalyzer counterexampleAnalyzer) {
          this.counterexampleAnalyzer = counterexampleAnalyzer;
          return this;
      } 

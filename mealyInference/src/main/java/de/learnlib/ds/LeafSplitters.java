@@ -23,8 +23,7 @@ import de.learnlib.ds.ADTLeafNode;
 import de.learnlib.ds.ADTNode;
 import de.learnlib.ds.ADTResetNode;
 import de.learnlib.ds.ADTSymbolNode;
-import de.learnlib.ds.LeafSplitter;
-import de.learnlib.algorithms.adt.util.ADTUtil;
+import de.learnlib.ds.ADTUtil;
 import net.automatalib.commons.util.Pair;
 import net.automatalib.words.Word;
 
@@ -34,6 +33,16 @@ import net.automatalib.words.Word;
  * @author frohme
  */
 public final class LeafSplitters {
+
+    /**
+     * Interface for splitting leaf nodes in ADT.
+     */
+    public interface LeafSplitter {
+        <S, I, O> ADTNode<S, I, O> split(ADTNode<S, I, O> nodeToSplit,
+                                         Word<I> distinguishingSuffix,
+                                         Word<O> oldOutput,
+                                         Word<O> newOutput);
+    }
 
     public static final LeafSplitter DEFAULT_SPLITTER = LeafSplitters::splitIntoNewADS;
 

@@ -15,7 +15,7 @@
  */
 package de.learnlib.ds;
 
-import de.learnlib.algorithms.adt.adt.ADTNode;
+import de.learnlib.ds.ADTNode;
 import net.automatalib.words.Word;
 
 /**

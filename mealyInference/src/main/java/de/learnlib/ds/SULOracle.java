@@ -18,11 +18,10 @@ package de.learnlib.ds;
 import java.util.Collection;
 
 import de.learnlib.api.SUL;
-import de.learnlib.api.oracle.MembershipOracle.MealyMembershipOracle;
 import de.learnlib.api.query.Query;
+import de.learnlib.ds.MembershipOracle.MealyMembershipOracle;
 import net.automatalib.words.Word;
-import net.automatalib.words.WordBuilder;
-
+import net.automatalib.words.WordBuilder;;
 /**
  * A wrapper around a system under learning (SUL).
  * <p>
@@ -36,7 +35,9 @@ public class SULOracle<I, O> implements MealyMembershipOracle<I, O> {
     private final SUL<I, O> sul;
 
     public SULOracle(SUL<I, O> sul) {
+        
         this.sul = sul;
+        // throw new RuntimeException("jjj");
     }
 
     @Override
@@ -52,13 +53,20 @@ public class SULOracle<I, O> implements MealyMembershipOracle<I, O> {
         sul.pre();
         try {
             // Prefix: Execute symbols, don't record output
+            
             for (I sym : prefix) {
                 sul.step(sym);
-            }
+            }   
 
             // Suffix: Execute symbols, outputs constitute output word
             WordBuilder<O> wb = new WordBuilder<>(suffix.length());
             for (I sym : suffix) {
+
+                Class<?> clazz = sul.getClass();
+                ResetCounterSUL<I,O> rcSUL = (ResetCounterSUL<I,O>) sul;
+                // Counter stats = rcSUL.getStatisticalData();
+                
+                // System.out.println("AAAAAAAAAAAAAAAAAAAAA"+clazz);
                 wb.add(sul.step(sym));
             }
 
@@ -67,5 +75,4 @@ public class SULOracle<I, O> implements MealyMembershipOracle<I, O> {
             sul.post();
         }
     }
-
 }

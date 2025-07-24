@@ -47,12 +47,6 @@ limitations under the License.
                 <scope>import</scope>
             </dependency>
             <dependency>
-                <groupId>com.github.misberner.buildergen</groupId>
-                <artifactId>buildergen</artifactId>
-                <version>0.3.0</version>
-                <scope>compile</scope>
-            </dependency>
-            <dependency>
                 <groupId>de.learnlib</groupId>
                 <artifactId>learnlib-tools</artifactId>
                 <version>0.16.0</version>
@@ -65,16 +59,18 @@ limitations under the License.
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            
+            <dependency>
+                <groupId>com.github.misberner.buildergen</groupId>
+                <artifactId>buildergen</artifactId>
+                <version>0.3.0</version>
+            </dependency>
+
+
         </dependencies>
     </dependencyManagement>
 
     <dependencies>
-
-        <dependency>
-            <groupId>com.github.misberner.buildergen</groupId>
-            <artifactId>buildergen</artifactId>
-            <version>0.1</version>
-        </dependency>
 
     	<!-- https://mvnrepository.com/artifact/org.apache.commons/commons-collections4 -->
 		<dependency>
@@ -136,6 +132,8 @@ limitations under the License.
     		<version>0.0.1-SNAPSHOT</version>
     	</dependency>
     	--> 
+
+
     </dependencies>
 
 </project>

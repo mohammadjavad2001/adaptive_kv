@@ -15,12 +15,12 @@
  */
 package de.learnlib.algorithms.kv;
 import net.automatalib.graphs.concepts.GraphViewable;
-
+import de.learnlib.ds.StateInfo;
 import de.learnlib.api.algorithm.LearningAlgorithm;
 import de.learnlib.api.logging.LearnLogger;
 import de.learnlib.api.oracle.EquivalenceOracle;
 import de.learnlib.api.query.DefaultQuery;
-import de.learnlib.datastructure.discriminationtree.MultiDTree;
+import de.learnlib.ds.MultiDTree;
 import de.learnlib.filter.statistic.Counter;
 import de.learnlib.util.statistics.SimpleProfiler;
 import net.automatalib.automata.fsa.DFA;
@@ -49,12 +49,15 @@ public class Experiment<A extends Object> {
     private boolean profile;
     private final Counter rounds = new Counter("learning rounds", "#");
     private @Nullable A finalHypothesis;
+    // protected final Alphabet<I> imAlphabet;
     private MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> discrtree;
 
     public <I, D> Experiment(LearningAlgorithm<? extends A, I, D> learningAlgorithm,
                              EquivalenceOracle<? super A, I, D> equivalenceAlgorithm,
                              Alphabet<I> inputs) {
         this.impl = new ExperimentImpl<>(learningAlgorithm, equivalenceAlgorithm, inputs);
+        
+        System.out.println("dddddddddddddddddd"+impl.inputs);
     }
     public MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> getDiscrtree() {
         return discrtree;
@@ -119,7 +122,7 @@ public class Experiment<A extends Object> {
 
         private final LearningAlgorithm<? extends A, I, D> learningAlgorithm;
         private final EquivalenceOracle<? super A, I, D> equivalenceAlgorithm;
-        private final Alphabet<I> inputs;
+        protected final Alphabet<I> inputs;
 
         ExperimentImpl(LearningAlgorithm<? extends A, I, D> learningAlgorithm,
                        EquivalenceOracle<? super A, I, D> equivalenceAlgorithm,
@@ -139,6 +142,7 @@ public class Experiment<A extends Object> {
             profileStart(LEARNING_PROFILE_KEY);
             learningAlgorithm.startLearning();
             profileStop(LEARNING_PROFILE_KEY);
+
 
             while (true) {
                 final A hyp = learningAlgorithm.getHypothesisModel();
@@ -208,6 +212,8 @@ public class Experiment<A extends Object> {
                                Alphabet<I> inputs) {
             super(learningAlgorithm, equivalenceAlgorithm, inputs);
         }
+        
 
-    }
+    }   
+    
 }
