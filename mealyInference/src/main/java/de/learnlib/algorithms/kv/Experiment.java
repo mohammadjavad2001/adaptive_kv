@@ -212,7 +212,17 @@ public class Experiment<A extends Object> {
                                Alphabet<I> inputs) {
             super(learningAlgorithm, equivalenceAlgorithm, inputs);
         }
-        
+        public MealyExperiment(
+            EquivalenceOracle<? super MealyMachine<?, I, ?, O>, I, Word<O>> equivalenceAlgorithm
+            ) {
+            super(null, equivalenceAlgorithm, null);
+        }
+        public static void f() {
+            EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = null;
+		Experiment.MealyExperiment<String, Word<String>> experiment = 
+		new Experiment.MealyExperiment<String, Word<String>>(eqOracle);
+		
+        }
 
     }   
     
