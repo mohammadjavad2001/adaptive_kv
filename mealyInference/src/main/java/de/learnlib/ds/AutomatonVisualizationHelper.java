@@ -1,4 +1,3 @@
-
 /* Copyright (C) 2013-2024 TU Dortmund University
  * This file is part of AutomataLib, http://www.automatalib.net/.
  *
@@ -18,10 +17,12 @@ package de.learnlib.ds;
 
 import java.util.Collection;
 import java.util.Map;
+
 import net.automatalib.automata.Automaton;
-
+// import net.automatalib.automaton.Automaton;
+// import net.automatalib.graphs.TransitionEdge;
 import net.automatalib.automata.graphs.TransitionEdge;
-
+// import net.automatalib.automaton.graph.TransitionEdge;
 import net.automatalib.visualization.DefaultVisualizationHelper;
 
 public class AutomatonVisualizationHelper<S, I, T, A extends Automaton<S, I, T>>

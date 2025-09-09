@@ -17,15 +17,13 @@ package de.learnlib.ds;
 
 import java.util.Collection;
 
-import de.learnlib.ds.MealyVisualizationHelper;
-import de.learnlib.ds.TransitionOutputAutomaton;
 import net.automatalib.automata.UniversalDeterministicAutomaton;
 import net.automatalib.automata.graphs.TransitionEdge;
 import net.automatalib.automata.graphs.UniversalAutomatonGraphView;
+import de.learnlib.ds.MealyVisualizationHelper;
 import net.automatalib.graphs.UniversalGraph;
 import net.automatalib.ts.output.MealyTransitionSystem;
 import net.automatalib.visualization.VisualizationHelper;
-// import net.automatalib.automata.transducers.Me;
 
 /**
  * @author fh
@@ -45,11 +43,14 @@ public interface MealyMachine<S, I, T, O> extends UniversalDeterministicAutomato
         public MealyGraphView(A automaton, Collection<? extends I> inputs) {
             super(automaton, inputs);
         }
-
+                 
         @Override
         public VisualizationHelper<S, TransitionEdge<I, T>> getVisualizationHelper() {
-            // return new MealyVisualizationHelper<>(automaton);
-            return new MealyVisualizationHelper<S, I, T, O>(automaton);
+            return new MealyVisualizationHelper<>(automaton);
+            // return new MealyVisualizationHelper(null)<>(automaton);
         }
+   
+        
     }
+
 }

@@ -116,6 +116,7 @@ public class MealySimulatorSUL<I, O> implements SUL<I, O> {
         MealySimulatorSULImpl(MealyMachine<S, I, T, O> mealy, O noTransOut) {
             this.mealy = mealy;
             this.noTransOut = noTransOut;
+            // throw new RuntimeException();
         }
 
         @Override

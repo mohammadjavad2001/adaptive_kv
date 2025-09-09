@@ -62,7 +62,7 @@ import de.learnlib.algorithms.kv.KearnsVaziraniMealyState;
  * @author Malte Isberner
  */
 
-public class KearnsVaziraniMealy<A, I, O>
+public class KearnsVaziraniMealy<I, O>
         implements MealyLearner<I, O>, SupportsGrowingAlphabet<I>, Resumable<KearnsVaziraniMealyState<I, O>> {
 
     private final Alphabet<I> alphabet;

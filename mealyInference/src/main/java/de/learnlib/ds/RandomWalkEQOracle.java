@@ -21,9 +21,9 @@ import java.util.Objects;
 import java.util.Random;
 
 import de.learnlib.api.SUL;
-import de.learnlib.api.oracle.EquivalenceOracle.MealyEquivalenceOracle;
+import de.learnlib.ds.EquivalenceOracle.MealyEquivalenceOracle;
 import de.learnlib.api.query.DefaultQuery;
-import net.automatalib.automata.transducers.MealyMachine;
+import de.learnlib.ds.MealyMachine;
 import net.automatalib.commons.util.collections.CollectionsUtil;
 import net.automatalib.words.Word;
 import net.automatalib.words.WordBuilder;
@@ -94,7 +94,7 @@ public class RandomWalkEQOracle<I, O> implements MealyEquivalenceOracle<I, O> {
                                                                  Collection<? extends I> inputs) {
         return doFindCounterExample(hypothesis, inputs);
     }
-
+     
     private <S, T> @Nullable DefaultQuery<I, Word<O>> doFindCounterExample(MealyMachine<S, I, T, O> hypothesis,
                                                                            Collection<? extends I> inputs) {
         // reset termination counter?
@@ -158,4 +158,7 @@ public class RandomWalkEQOracle<I, O> implements MealyEquivalenceOracle<I, O> {
             sul.post();
         }
     }
+
+
+    
 }

@@ -1,13 +1,3 @@
-
-package de.learnlib.ds;
-
-import java.util.Collection;
-
-import de.learnlib.api.query.DefaultQuery;
-import net.automatalib.automata.fsa.DFA;
-import de.learnlib.ds.MealyMachine;
-import net.automatalib.words.Word;
-import org.checkerframework.checker.nullness.qual.Nullable;
 /* Copyright (C) 2013-2020 TU Dortmund
  * This file is part of LearnLib, http://www.learnlib.de/.
  *
@@ -23,6 +13,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package de.learnlib.api.oracle;
+
+import java.util.Collection;
+
+import de.learnlib.api.query.DefaultQuery;
+import net.automatalib.automata.fsa.DFA;
+import net.automatalib.automata.transducers.MealyMachine;
+import net.automatalib.words.Word;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An equivalence oracle, which checks hypothesis automata against the (possibly unknown) system under learning (SUL).

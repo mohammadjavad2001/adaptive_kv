@@ -1,5 +1,3 @@
-package de.learnlib.ds;
-
 /* Copyright (C) 2013-2020 TU Dortmund
  * This file is part of AutomataLib, http://www.automatalib.net/.
  *
@@ -16,18 +14,20 @@ package de.learnlib.ds;
  * limitations under the License.
  */
 
+ package de.learnlib.ds;
+
 import java.util.Map;
 
 import net.automatalib.automata.graphs.TransitionEdge;
-import net.automatalib.automata.transducers.TransitionOutputAutomaton;
+import de.learnlib.ds.TransitionOutputAutomaton;
 
 public class MealyVisualizationHelper<S, I, T, O>
         extends AutomatonVisualizationHelper<S, I, T, TransitionOutputAutomaton<S, I, T, O>> {
-
+     
     public MealyVisualizationHelper(TransitionOutputAutomaton<S, I, T, O> automaton) {
         super(automaton);
     }
-
+    
     @Override
     public boolean getEdgeProperties(S src, TransitionEdge<I, T> edge, S tgt, Map<String, String> properties) {
         if (!super.getEdgeProperties(src, edge, tgt, properties)) {

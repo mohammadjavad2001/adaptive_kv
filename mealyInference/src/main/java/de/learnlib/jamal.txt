@@ -6,13 +6,15 @@ import br.usp.icmc.labes.mealyInference.utils.LearnLibProperties;
 import br.usp.icmc.labes.mealyInference.utils.Utils;
 import de.learnlib.algorithms.kv.KearnsVaziraniMealy;
 import de.learnlib.algorithms.kv.KearnsVaziraniMealyBuilder;
+
+
+
 import de.learnlib.api.SUL;
 // import de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealyBuilder;
 //import net.automatalib.automata.transducers.impl.compact.CompactMealy;
 import de.learnlib.api.logging.LearnLogger;
-
-import de.learnlib.ds.EquivalenceOracle;
-// import de.learnlib.api.oracle.EquivalenceOracle;
+// import de.learnlib.ds.EquivalenceOracle;
+import de.learnlib.api.oracle.EquivalenceOracle;
 
 import de.learnlib.ds.MembershipOracle;
 import de.learnlib.api.statistic.StatisticSUL;
@@ -26,15 +28,14 @@ import de.learnlib.oracle.equivalence.WMethodEQOracle;
 import de.learnlib.oracle.equivalence.WpMethodEQOracle;
 import de.learnlib.ds.RandomWalkEQOracle;
 import de.learnlib.ds.SULOracle;
-import de.learnlib.util.Experiment;
-// import de.learnlib.algorithms.kv.Experiment;
+// import de.learnlib.util.Experiment;
+
+import de.learnlib.algorithms.kv.Experiment;
 import de.learnlib.algorithms.kv.KearnsVaziraniMealyBuilder;
 import de.learnlib.util.statistics.SimpleProfiler;
-
 // import net.automatalib.automata.transducers.MealyMachine;
-import de.learnlib.ds.MealyMachine;
-
 import net.automatalib.automata.transducers.impl.compact.CompactMealy;
+import de.learnlib.ds.MealyMachine;
 import net.automatalib.commons.util.Pair;
 import net.automatalib.serialization.InputModelDeserializer;
 import net.automatalib.serialization.dot.DOTParsers;
@@ -382,8 +383,42 @@ public class hi<
 		maxSteps = learn_props.getRndWalk_maxSteps();
 		resetStepCount = learn_props.getRndWalk_resetStepsCount();
 
+        private static EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> buildEqOracle(
+			Random rnd_seed, CommandLine line, CompactMealy<String, Word<String>> mealyss,
+			SUL<String, Word<String>> eq_sul) {
+		MembershipOracle<String, Word<Word<String>>> oracleForEQoracle = new SULOracle<>(eq_sul);
+
+		EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle;
+		// if (!line.hasOption(EQ)) {
+		// 	return new WpMethodEQOracle<>(oracleForEQoracle, 2);
+		// }
+
+		double restartProbability;
+		int maxSteps, maxTests, maxLength, minLength, maxDepth, minimalSize, rndLength, bound;
+		long rnd_long;
+		boolean resetStepCount;
+
+		LearnLibProperties learn_props = LearnLibProperties.getInstance();
+
+		restartProbability = learn_props.getRndWalk_restartProbability();
+		maxSteps = learn_props.getRndWalk_maxSteps();
+		resetStepCount = learn_props.getRndWalk_resetStepsCount();
+
 		
 		eqOracle = new RandomWalkEQOracle<String, Word<String>>(
+				eq_sul, // sul
+				restartProbability, // reset SUL w/ this probability before a step
+				maxSteps, // max steps (overall)
+				resetStepCount, // reset step count after counterexample
+				rnd_seed // make results reproducible
+		);
+
+		
+		
+		return eqOracle;
+
+	}
+		eqOracle = new RandomWalkEQOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>>(
 				eq_sul, // sul
 				restartProbability, // reset SUL w/ this probability before a step
 				maxSteps, // max steps (overall)
@@ -462,7 +497,7 @@ public class hi<
 
 		// Create a SUL (System Under Learning) from the Mealy machine
 		MealySimulatorSUL<String, Word<String>> sul = new MealySimulatorSUL<>(mealyMachine);
-		EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = null;
+		EquivalenceOracle<MealyMachine<?,String,?,Word<String>>,String,Word<Word<String>>> eqOracle = null;
 		eqOracle = buildEqOracle(rnd_seed, line, mealyMachine, eq_sul);
 
 		// Set up membership oracle with counters
@@ -543,13 +578,12 @@ public class hi<
 		//settttttt
 					
 		// MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> discriminationTree = new MultiDTree<I, Word<O>, StateInfo<I, Word<O>>>;
-		// MealyMachine<?, String, ?, Word<String>> ghooz = null;
-
-		Experiment.MealyExperiment<String, Word<String>> experiment = 
-		new Experiment.MealyExperiment<String, Word<String>>(learner, eqOracle, combinedAlphabet);
-	
 		// Experiment.MealyExperiment<String, Word<String>> experiment = 
-		// new Experiment.MealyExperiment<String, Word<String>>(eqOracle);
+		// new Experiment.MealyExperiment<String, Word<String>>(learner, eqOracle, combinedAlphabet);
+		MealyMachine<?, String, ?, Word<String>> ghooz = null;
+	
+		Experiment.MealyExperiment<String, Word<String>> experiment = 
+		new Experiment.MealyExperiment<String, Word<String>>(eqOracle);
 		
 		int[] statistics_array=new int[6];
 		

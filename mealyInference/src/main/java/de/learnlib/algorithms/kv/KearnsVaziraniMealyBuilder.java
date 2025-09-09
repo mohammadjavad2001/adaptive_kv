@@ -12,21 +12,21 @@
  import net.automatalib.words.Word;
  import de.learnlib.ds.StateInfo;
  public final class KearnsVaziraniMealyBuilder<
-         A extends java.lang.Object,
-         I extends java.lang.Object,
-         O extends java.lang.Object> {
+        A extends java.lang.Object,
+        I extends java.lang.Object,
+        O extends java.lang.Object> {
  
     private static<
             A extends java.lang.Object,
             I extends java.lang.Object,
-            O extends java.lang.Object> de.learnlib.algorithms.kv.KearnsVaziraniMealy<A, I, O> $createDispatch(
+            O extends java.lang.Object> de.learnlib.algorithms.kv.KearnsVaziraniMealy<I, O> $createDispatch(
         net.automatalib.words.Alphabet<I> alphabet,
         de.learnlib.ds.MembershipOracle<I,net.automatalib.words.Word<O>> oracle,
         boolean repeatedCounterexampleEvaluation,
         de.learnlib.acex.AcexAnalyzer counterexampleAnalyzer,
         MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> dsicTree 
         ) {
-        return new KearnsVaziraniMealy<A, I, O>(
+        return new KearnsVaziraniMealy< I, O>(
            alphabet,
            oracle,
            repeatedCounterexampleEvaluation,
@@ -54,7 +54,7 @@
          this.counterexampleAnalyzer = de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealy.BuilderDefaults.counterexampleAnalyzer();
      }
  
-     public <A> KearnsVaziraniMealy<A, I, O> create(MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> tree) {
+     public KearnsVaziraniMealy<I, O> create(MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> tree) {
          return $createDispatch(
              this.alphabet,
              this.oracle,
