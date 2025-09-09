@@ -6,13 +6,11 @@ import br.usp.icmc.labes.mealyInference.utils.LearnLibProperties;
 import br.usp.icmc.labes.mealyInference.utils.Utils;
 import de.learnlib.algorithms.kv.KearnsVaziraniMealy;
 import de.learnlib.algorithms.kv.KearnsVaziraniMealyBuilder;
-
-
-
 import de.learnlib.api.SUL;
 // import de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealyBuilder;
 //import net.automatalib.automata.transducers.impl.compact.CompactMealy;
 import de.learnlib.api.logging.LearnLogger;
+
 import de.learnlib.ds.EquivalenceOracle;
 // import de.learnlib.api.oracle.EquivalenceOracle;
 
@@ -29,7 +27,6 @@ import de.learnlib.oracle.equivalence.WpMethodEQOracle;
 import de.learnlib.ds.RandomWalkEQOracle;
 import de.learnlib.ds.SULOracle;
 // import de.learnlib.util.Experiment;
-
 import de.learnlib.algorithms.kv.Experiment;
 import de.learnlib.algorithms.kv.KearnsVaziraniMealyBuilder;
 import de.learnlib.util.statistics.SimpleProfiler;
@@ -463,7 +460,7 @@ public class hi<
 
 		// Create a SUL (System Under Learning) from the Mealy machine
 		MealySimulatorSUL<String, Word<String>> sul = new MealySimulatorSUL<>(mealyMachine);
-		MealyEquivalenceOracle<String, Word<String>> eqOracle = null;
+		EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = null;
 		eqOracle = buildEqOracle(rnd_seed, line, mealyMachine, eq_sul);
 
 		// Set up membership oracle with counters
@@ -544,12 +541,13 @@ public class hi<
 		//settttttt
 					
 		// MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> discriminationTree = new MultiDTree<I, Word<O>, StateInfo<I, Word<O>>>;
-		// Experiment.MealyExperiment<String, Word<String>> experiment = 
-		// new Experiment.MealyExperiment<String, Word<String>>(learner, eqOracle, combinedAlphabet);
-		MealyMachine<?, String, ?, Word<String>> ghooz = null;
-	
+		// MealyMachine<?, String, ?, Word<String>> ghooz = null;
+
 		Experiment.MealyExperiment<String, Word<String>> experiment = 
-		new Experiment.MealyExperiment<String, Word<String>>(eqOracle);
+		new Experiment.MealyExperiment<String, Word<String>>(learner, eqOracle, combinedAlphabet);
+	
+		// Experiment.MealyExperiment<String, Word<String>> experiment = 
+		// new Experiment.MealyExperiment<String, Word<String>>(eqOracle);
 		
 		int[] statistics_array=new int[6];
 		

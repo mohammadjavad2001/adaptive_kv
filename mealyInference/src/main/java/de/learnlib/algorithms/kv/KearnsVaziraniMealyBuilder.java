@@ -12,9 +12,9 @@
  import net.automatalib.words.Word;
  import de.learnlib.ds.StateInfo;
  public final class KearnsVaziraniMealyBuilder<
-         A extends java.lang.Object,
-         I extends java.lang.Object,
-         O extends java.lang.Object> {
+        A extends java.lang.Object,
+        I extends java.lang.Object,
+        O extends java.lang.Object> {
  
     private static<
             A extends java.lang.Object,
