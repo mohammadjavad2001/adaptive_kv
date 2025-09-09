@@ -6,12 +6,14 @@ import br.usp.icmc.labes.mealyInference.utils.LearnLibProperties;
 import br.usp.icmc.labes.mealyInference.utils.Utils;
 import de.learnlib.algorithms.kv.KearnsVaziraniMealy;
 import de.learnlib.algorithms.kv.KearnsVaziraniMealyBuilder;
-
 import de.learnlib.api.SUL;
 // import de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealyBuilder;
 //import net.automatalib.automata.transducers.impl.compact.CompactMealy;
 import de.learnlib.api.logging.LearnLogger;
+
 import de.learnlib.ds.EquivalenceOracle;
+// import de.learnlib.api.oracle.EquivalenceOracle;
+
 import de.learnlib.ds.MembershipOracle;
 import de.learnlib.api.statistic.StatisticSUL;
 import de.learnlib.datastructure.observationtable.writer.ObservationTableASCIIWriter;
@@ -24,14 +26,15 @@ import de.learnlib.oracle.equivalence.WMethodEQOracle;
 import de.learnlib.oracle.equivalence.WpMethodEQOracle;
 import de.learnlib.ds.RandomWalkEQOracle;
 import de.learnlib.ds.SULOracle;
-// import de.learnlib.util.Experiment;
-
-import de.learnlib.algorithms.kv.Experiment;
+import de.learnlib.util.Experiment;
+// import de.learnlib.algorithms.kv.Experiment;
 import de.learnlib.algorithms.kv.KearnsVaziraniMealyBuilder;
 import de.learnlib.util.statistics.SimpleProfiler;
-// import net.automatalib.automata.transducers.MealyMachine;
-import net.automatalib.automata.transducers.impl.compact.CompactMealy;
+
+import net.automatalib.automata.transducers.MealyMachine;
 import de.learnlib.ds.MealyMachine;
+
+import net.automatalib.automata.transducers.impl.compact.CompactMealy;
 import net.automatalib.commons.util.Pair;
 import net.automatalib.serialization.InputModelDeserializer;
 import net.automatalib.serialization.dot.DOTParsers;
@@ -496,7 +499,7 @@ public class hi<
 				allInputAlphabets.add(symbol);
 			}
 		}
-		
+				
 		System.out.println("Combined alphabet now has " + allInputAlphabets.size() + " unique symbols");
 		Alphabet<String> combinedAlphabet = Alphabets.fromCollection(allInputAlphabets);
 		
@@ -513,11 +516,9 @@ public class hi<
 		Alphabet<String> a413 = mealyMachine.getInputAlphabet();
 		System.out.println();
 
-		// KearnsVaziraniMealy<String, Word<String>> learner=null;
-		KearnsVaziraniMealy<String, String, Word<String>> learner = null;
-		// KearnsVaziraniMealy<String, Word<String>> learner=null;
-		// EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<String>>>
-													
+		// KearnsVaziraniMealy<MealyMachine<?, String, ?, Word<String>>, String, Word<String>> learner = null;											
+        KearnsVaziraniMealy<String, Word<String>> learner=null;
+
 		if (i==0){	
 			learner = builder.withAlphabet(productAlphabet).create(null);
 		}
@@ -542,17 +543,22 @@ public class hi<
 		//settttttt
 					
 		// MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> discriminationTree = new MultiDTree<I, Word<O>, StateInfo<I, Word<O>>>;
+		// MealyMachine<?, String, ?, Word<String>> ghooz = null;
+
 		Experiment.MealyExperiment<String, Word<String>> experiment = 
 		new Experiment.MealyExperiment<String, Word<String>>(learner, eqOracle, combinedAlphabet);
+	
+		// Experiment.MealyExperiment<String, Word<String>> experiment = 
+		// new Experiment.MealyExperiment<String, Word<String>>(eqOracle);
 		
 		int[] statistics_array=new int[6];
+		
 		if (i==0){
 
 			experiment.run(true);
 
 		}
 		else{
-
 			experiment.run(false);
 		}
 	
