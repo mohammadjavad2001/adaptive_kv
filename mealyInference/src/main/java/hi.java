@@ -26,8 +26,8 @@ import de.learnlib.oracle.equivalence.WMethodEQOracle;
 import de.learnlib.oracle.equivalence.WpMethodEQOracle;
 import de.learnlib.ds.RandomWalkEQOracle;
 import de.learnlib.ds.SULOracle;
-import de.learnlib.util.Experiment;
-// import de.learnlib.algorithms.kv.Experiment;
+// import de.learnlib.util.Experiment;
+import de.learnlib.algorithms.kv.Experiment;
 import de.learnlib.algorithms.kv.KearnsVaziraniMealyBuilder;
 import de.learnlib.util.statistics.SimpleProfiler;
 
@@ -76,7 +76,6 @@ import java.io.InputStream;
 import net.automatalib.commons.util.settings.AbstractClassPathFileSource;
 import net.automatalib.commons.util.settings.AbstractClassPathFileSource;
 import java.util.*;
-import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.automatalib.words.WordBuilder;
@@ -407,7 +406,7 @@ public class hi<
 //             System.err.println("Usage: LearnMealyWithKV <dot-file>");
 //             System.exit(1);
 //         }
-		String[] a54= {".\\experiments\\Minepump_SPL\\products_3wise"
+		String[] a54= {".\\alternative_experiments\\Minepump_SPL\\products_3wise"
 			,".\\experiments\\Minepump_SPL\\products_3wise"};
 		String[] a213={"00001_fsm.dot","00004_fsm.dot"};
 		
@@ -484,7 +483,7 @@ public class hi<
 
 
 
-		Alphabet<String> alphbe22 = mealyMachine.getInputAlphabet();
+		// Alphabet<String> alphbe22 = mealyMachine.getInputAlphabet();
 		
 		// Get the current product's input alphabet
 		Alphabet<String> productAlphabet = mealyMachine.getInputAlphabet();
@@ -536,7 +535,7 @@ public class hi<
 			System.out.println("RRRRRRRRRRRRRRRRRRRR");
 		}
 		// if (i == 1 && tree_round2 != null) {
-				// System.out.println("BBBBBBBBB");
+				// System.out.println("BBBBBBBBB"EEE);
 			// builder.setDiscriminationTree(tree_round2);
 			// builder.setDiscriminationTree(tree_round2);
 		// }
@@ -544,10 +543,10 @@ public class hi<
 					
 		// MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> discriminationTree = new MultiDTree<I, Word<O>, StateInfo<I, Word<O>>>;
 		// MealyMachine<?, String, ?, Word<String>> ghooz = null;
-
+					
 		Experiment.MealyExperiment<String, Word<String>> experiment = 
 		new Experiment.MealyExperiment<String, Word<String>>(learner, eqOracle, combinedAlphabet);
-	
+		// (de.learnlib.api.oracle.EquivalenceOracle<? super net.automatalib.automata.transducers.MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>>)
 		// Experiment.MealyExperiment<String, Word<String>> experiment = 
 		// new Experiment.MealyExperiment<String, Word<String>>(eqOracle);
 		
@@ -635,7 +634,7 @@ public class hi<
 		Alphabet<String> alphabet = mealyMachine.getInputAlphabet();
 
 		CompactMealy<String, Word<String>> learnedModel = new CompactMealy<>(alphabet);
-		MealyMachine<?, String, ?, Word<String>> finalHyp = experiment.getFinalHypothesis();
+		MealyMachine<?, String, ?, Word<String>> finalHyp = (MealyMachine<?, String, ?, Word<String>>) experiment.getFinalHypothesis();
 
 
 	
