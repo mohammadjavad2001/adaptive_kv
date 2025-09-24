@@ -5,10 +5,11 @@
  * de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealy<I,O>
  */
 
- package de.learnlib.algorithms.kv;
+package de.learnlib.algorithms.kv;
+import de.learnlib.algorithms.kv.KearnsVaziraniMealy;
  import de.learnlib.ds.MultiDTree;
  import net.automatalib.words.Alphabet;
- import de.learnlib.algorithms.kv.KearnsVaziraniMealy;
+//  import de.learnlib.algorithms.kv.KearnsVaziraniMealy;
  import net.automatalib.words.Word;
  import de.learnlib.ds.StateInfo;
  public final class KearnsVaziraniMealyBuilder<
@@ -70,6 +71,7 @@
      public void setAlphabet(net.automatalib.words.Alphabet<I> alphabet) {
          this.alphabet = alphabet;
      }
+     
      public KearnsVaziraniMealyBuilder<A, I, O> withAlphabet(net.automatalib.words.Alphabet<I> alphabet) {
          this.alphabet = alphabet;
          return this;

@@ -5,14 +5,18 @@ import br.usp.icmc.labes.mealyInference.utils.Infer_LearnLib;
 import br.usp.icmc.labes.mealyInference.utils.LearnLibProperties;
 import br.usp.icmc.labes.mealyInference.utils.Utils;
 import de.learnlib.algorithms.kv.KearnsVaziraniMealy;
+
+
+// import de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealy;
+
 import de.learnlib.algorithms.kv.KearnsVaziraniMealyBuilder;
 import de.learnlib.api.SUL;
 // import de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealyBuilder;
 //import net.automatalib.automata.transducers.impl.compact.CompactMealy;
 import de.learnlib.api.logging.LearnLogger;
 
-import de.learnlib.ds.EquivalenceOracle;
-// import de.learnlib.api.oracle.EquivalenceOracle;
+// import de.learnlib.ds.EquivalenceOracle;
+import de.learnlib.api.oracle.EquivalenceOracle;
 
 import de.learnlib.ds.MembershipOracle;
 import de.learnlib.api.statistic.StatisticSUL;
@@ -24,11 +28,14 @@ import de.learnlib.oracle.equivalence.RandomWMethodEQOracle;
 import de.learnlib.oracle.equivalence.RandomWordsEQOracle;
 import de.learnlib.oracle.equivalence.WMethodEQOracle;
 import de.learnlib.oracle.equivalence.WpMethodEQOracle;
-import de.learnlib.ds.RandomWalkEQOracle;
+// import de.learnlib.ds.RandomWalkEQOracle;
+import de.learnlib.oracle.equivalence.mealy.RandomWalkEQOracle;
+
 import de.learnlib.ds.SULOracle;
-// import de.learnlib.util.Experiment;
-import de.learnlib.algorithms.kv.Experiment;
-import de.learnlib.algorithms.kv.KearnsVaziraniMealyBuilder;
+import de.learnlib.util.Experiment;
+// import de.learnlib.algorithms.kv.Experiment;
+
+
 import de.learnlib.util.statistics.SimpleProfiler;
 
 // import net.automatalib.automata.transducers.MealyMachine;
@@ -388,7 +395,7 @@ public class hi<
 				maxSteps, // max steps (overall)
 				resetStepCount, // reset step count after counterexample
 				rnd_seed // make results reproducible
-		);
+			);
 
 		
 		
@@ -486,6 +493,7 @@ public class hi<
 		// Alphabet<String> alphbe22 = mealyMachine.getInputAlphabet();
 		
 		// Get the current product's input alphabet
+		
 		Alphabet<String> productAlphabet = mealyMachine.getInputAlphabet();
 		
 		// Add all symbols from this product's alphabet to our combined collection
