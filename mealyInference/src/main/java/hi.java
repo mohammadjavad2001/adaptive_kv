@@ -387,8 +387,10 @@ public class hi<
 		restartProbability = learn_props.getRndWalk_restartProbability();
 		maxSteps = learn_props.getRndWalk_maxSteps();
 		resetStepCount = learn_props.getRndWalk_resetStepsCount();
-
+	
 		
+
+
 		eqOracle = new RandomWalkEQOracle<String, Word<String>>(
 				eq_sul, // sul
 				restartProbability, // reset SUL w/ this probability before a step
@@ -397,6 +399,8 @@ public class hi<
 				rnd_seed // make results reproducible
 			);
 
+					
+				
 		
 		
 		return eqOracle;
