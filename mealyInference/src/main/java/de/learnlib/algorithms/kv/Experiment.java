@@ -163,6 +163,10 @@ public class Experiment<A extends Object> {
                 LOGGER.logPhase("Searching for counterexample");
                 System.out.println("Searching for counterexample");
                 profileStart(COUNTEREXAMPLE_PROFILE_KEY);
+
+                
+                System.out.println(hyp+"BBBBBBBBBBBBBB"+inputs);
+
                 DefaultQuery<I, D> ce = equivalenceAlgorithm.findCounterExample(hyp, inputs);
                 profileStop(COUNTEREXAMPLE_PROFILE_KEY);
 

@@ -9,6 +9,7 @@ import de.learnlib.algorithms.kv.KearnsVaziraniMealyBuilder;
 import de.learnlib.api.SUL;
 // import de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealyBuilder;
 //import net.automatalib.automata.transducers.impl.compact.CompactMealy;
+import de.learnlib.api.algorithm.LearningAlgorithm;
 import de.learnlib.api.logging.LearnLogger;
 
 import de.learnlib.ds.EquivalenceOracle;
@@ -33,8 +34,8 @@ import de.learnlib.util.statistics.SimpleProfiler;
 
 // import net.automatalib.automata.transducers.MealyMachine;
 import de.learnlib.ds.MealyMachine;
-
-import net.automatalib.automata.transducers.impl.compact.CompactMealy;
+import de.learnlib.ds.CompactMealy;
+// import net.automatalib.automata.transducers.impl.compact.CompactMealy;
 import net.automatalib.commons.util.Pair;
 import net.automatalib.serialization.InputModelDeserializer;
 import net.automatalib.serialization.dot.DOTParsers;
@@ -548,7 +549,7 @@ public class hi<
 		// new Experiment.MealyExperiment<String, Word<String>>(learner, eqOracle, combinedAlphabet);
 		// (de.learnlib.api.oracle.EquivalenceOracle<? super net.automatalib.automata.transducers.MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>>)
 		Experiment.MealyExperiment<String, Word<String>> experiment = 
-		new Experiment.MealyExperiment<String, Word<String>>(learner);
+		new Experiment.MealyExperiment<String, Word<String>>((LearningAlgorithm<? extends MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>>) learner, eqOracle, combinedAlphabet);
 		
 		int[] statistics_array=new int[6];
 		
