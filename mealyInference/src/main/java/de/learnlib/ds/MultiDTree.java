@@ -15,7 +15,8 @@
  */
 package de.learnlib.ds;
 
-import de.learnlib.ds.MembershipOracle;
+// import de.learnlib.ds.MembershipOracle;
+import de.learnlib.api.oracle.MembershipOracle;
 import de.learnlib.ds.AbstractWordBasedDiscriminationTree;
 
 /**

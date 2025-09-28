@@ -17,8 +17,9 @@ import de.learnlib.api.logging.LearnLogger;
 
 // import de.learnlib.ds.EquivalenceOracle;
 import de.learnlib.api.oracle.EquivalenceOracle;
+import de.learnlib.api.oracle.MembershipOracle;
 
-import de.learnlib.ds.MembershipOracle;
+// import de.learnlib.ds.MembershipOracle;
 import de.learnlib.api.statistic.StatisticSUL;
 import de.learnlib.datastructure.observationtable.writer.ObservationTableASCIIWriter;
 import de.learnlib.ds.MealySimulatorSUL;
@@ -31,15 +32,18 @@ import de.learnlib.oracle.equivalence.WpMethodEQOracle;
 // import de.learnlib.ds.RandomWalkEQOracle;
 import de.learnlib.oracle.equivalence.mealy.RandomWalkEQOracle;
 
-import de.learnlib.ds.SULOracle;
-import de.learnlib.util.Experiment;
-// import de.learnlib.algorithms.kv.Experiment;
+
+import de.learnlib.oracle.membership.SULOracle;
+// import de.learnlib.ds.SULOracle;
+
+// import de.learnlib.util.Experiment;
+import de.learnlib.algorithms.kv.Experiment;
 
 
 import de.learnlib.util.statistics.SimpleProfiler;
 
-// import net.automatalib.automata.transducers.MealyMachine;
-import de.learnlib.ds.MealyMachine;
+import net.automatalib.automata.transducers.MealyMachine;
+// import de.learnlib.ds.MealyMachine;
 
 import net.automatalib.automata.transducers.impl.compact.CompactMealy;
 import net.automatalib.commons.util.Pair;
@@ -65,8 +69,9 @@ import java.io.FileReader;
 import java.io.FileWriter;
 
 import net.automatalib.visualization.VisualizationHelper;
-
 import de.learnlib.algorithms.kv.StateInfo;
+
+// import de.learnlib.algorithms.kv.StateInfo;
 import de.learnlib.algorithms.kv.GraphUtils;
 
 
@@ -92,7 +97,11 @@ import net.automatalib.words.Alphabet;
 import net.automatalib.graphs.concepts.GraphViewable;
 import net.automatalib.visualization.Visualization;
 import net.automatalib.visualization.VisualizationHelper.EdgeAttrs;
-import de.learnlib.ds.MultiDTree;
+
+// import de.learnlib.ds.MultiDTree;
+import de.learnlib.datastructure.discriminationtree.MultiDTree;
+
+
 import de.learnlib.ds.AbstractWordBasedDTNode;
 import de.learnlib.algorithms.kv.StateInfo;
 import net.automatalib.graphs.concepts.GraphViewable;
@@ -105,7 +114,7 @@ public class hi<
          O extends java.lang.Object> {
 
 	// Add static variable to store tree between method calls
-	static MultiDTree<String, Word<Word<String>>, de.learnlib.ds.StateInfo<String, Word<Word<String>>>> tree_round2 = null;
+	static MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = null;
 	// MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> tree_round2 = null;
 	// Add static ArrayList to store all input alphabets
 	private static ArrayList<String> allInputAlphabets = new ArrayList<>();
@@ -367,46 +376,38 @@ public class hi<
 
 	// @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2
 
+
 	private static EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> buildEqOracle(
-			Random rnd_seed, CommandLine line, CompactMealy<String, Word<String>> mealyss,
-			SUL<String, Word<String>> eq_sul) {
-		MembershipOracle<String, Word<Word<String>>> oracleForEQoracle = new SULOracle<>(eq_sul);
+		Random rnd_seed, CommandLine line, CompactMealy<String, Word<String>> mealyss,
+		SUL<String, Word<String>> eq_sul) {
+	MembershipOracle<String, Word<Word<String>>> oracleForEQoracle = new SULOracle<>(eq_sul);
 
-		EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle;
-		// if (!line.hasOption(EQ)) {
-		// 	return new WpMethodEQOracle<>(oracleForEQoracle, 2);
-		// }
+	EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle;
+	// if (!line.hasOption(EQ)) {
+	// 	return new WpMethodEQOracle<>(oracleForEQoracle, 2);
+	// }
 
-		double restartProbability;
-		int maxSteps, maxTests, maxLength, minLength, maxDepth, minimalSize, rndLength, bound;
-		long rnd_long;
-		boolean resetStepCount;
+	double restartProbability;
+	int maxSteps, maxTests, maxLength, minLength, maxDepth, minimalSize, rndLength, bound;
+	long rnd_long;
+	boolean resetStepCount;
 
-		LearnLibProperties learn_props = LearnLibProperties.getInstance();
+	LearnLibProperties learn_props = LearnLibProperties.getInstance();
 
-		restartProbability = learn_props.getRndWalk_restartProbability();
-		maxSteps = learn_props.getRndWalk_maxSteps();
-		resetStepCount = learn_props.getRndWalk_resetStepsCount();
-	
-		
+	restartProbability = learn_props.getRndWalk_restartProbability();
+	maxSteps = learn_props.getRndWalk_maxSteps();
+	resetStepCount = learn_props.getRndWalk_resetStepsCount();
 
+	eqOracle = new RandomWalkEQOracle<String, Word<String>>(eq_sul, // sul
+			restartProbability, // reset SUL w/ this probability before a step
+			maxSteps, // max steps (overall)
+			resetStepCount, // reset step count after counterexample
+			rnd_seed // make results reproducible
+	);
 
-		eqOracle = new RandomWalkEQOracle<String, Word<String>>(
-				eq_sul, // sul
-				restartProbability, // reset SUL w/ this probability before a step
-				maxSteps, // max steps (overall)
-				resetStepCount, // reset step count after counterexample
-				rnd_seed // make results reproducible
-			);
+	return eqOracle;
+}
 
-					
-				
-		
-		
-		return eqOracle;
-
-	}
-	
 	
 	public static void learnalgo(File productFile_2, String[] args,int product) throws Exception {
 
@@ -418,7 +419,7 @@ public class hi<
 //             System.exit(1);
 //         }
 		String[] a54= {".\\alternative_experiments\\Minepump_SPL\\products_3wise"
-			,".\\experiments\\Minepump_SPL\\products_3wise"};
+			,".\\alternative_experiments\\Minepump_SPL\\products_3wise"};
 		String[] a213={"00001_fsm.dot","00004_fsm.dot"};
 		
 		for(int i=0;i<2;i++){
@@ -536,13 +537,13 @@ public class hi<
 		
 		else{
 			learner = builder.withAlphabet(combinedAlphabet).create(tree_round2);
-			// learner = builder.withAlphabet(combinedAlphabet).create(tree_round2);
+			// learner = builder.withAlphabet(combinedAlpha.bet).create(tree_round2);
 			// builder.setAlphabet(productAlphabet); 
 			System.out.println("Learner Alphabet Symbols++++++++++++");
 			System.out.println(learner.get_alphabet_symbol());
 			
 			System.out.println("ROUND@@@@@@INIT DISCRIMINATION TREE");
-			MultiDTree<String, Word<Word<String>>, de.learnlib.ds.StateInfo<String, Word<Word<String>>>> treeinit = learner.getDiscriminationTree();
+			MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> treeinit = learner.getDiscriminationTree();
 			Visualization.visualize(treeinit, true);
 			System.out.println("RRRRRRRRRRRRRRRRRRRR");
 		}
@@ -574,7 +575,7 @@ public class hi<
 		}
 	
 			// statistics array
-		MultiDTree<String, Word<Word<String>>, de.learnlib.ds.StateInfo<String, Word<Word<String>>>> tree = learner.getDiscriminationTree();
+		MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree = learner.getDiscriminationTree();
 		// MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> 
 		tree_round2 = experiment.getDiscrtree();
 		
@@ -629,8 +630,10 @@ public class hi<
 		Visualization.visualize(tree, true);
 		// Print the tree structure
 		System.out.println("********************Discrimination Tree Structure********************");
-		traverseAndPrintTree(tree.getRoot(), "", true);
 		
+		// ################################################################
+		// traverseAndPrintTree(tree.getRoot(), "", true);
+		// ################################################################		
 		
 
 		VisualizationHelper a=tree.getVisualizationHelper();

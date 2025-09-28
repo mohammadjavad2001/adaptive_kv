@@ -30,13 +30,21 @@ import de.learnlib.algorithms.kv.GenerateBuilder;
 import de.learnlib.acex.AcexAnalyzer;
 import de.learnlib.acex.analyzers.AcexAnalyzers;
 import de.learnlib.acex.impl.AbstractBaseCounterexample;
-import de.learnlib.ds.StateInfo;
+
+import de.learnlib.datastructure.discriminationtree.model.AbstractWordBasedDTNode;
+// import de.learnlib.ds.AbstractWordBasedDTNode;
+
+// import de.learnlib.ds.StateInfo;
+import de.learnlib.algorithms.kv.StateInfo;
+
 import de.learnlib.api.Resumable;
 import de.learnlib.api.algorithm.LearningAlgorithm.MealyLearner;
-import de.learnlib.ds.MembershipOracle;
+// import de.learnlib.ds.MembershipOracle;
+import de.learnlib.api.oracle.MembershipOracle;
 import de.learnlib.api.query.DefaultQuery;
-import de.learnlib.ds.MultiDTree;
-import de.learnlib.ds.AbstractWordBasedDTNode;
+// import de.learnlib.ds.MultiDTree;
+import de.learnlib.datastructure.discriminationtree.MultiDTree;
+
 import de.learnlib.datastructure.discriminationtree.model.LCAInfo;
 import de.learnlib.util.mealy.MealyUtil;
 import net.automatalib.SupportsGrowingAlphabet;
