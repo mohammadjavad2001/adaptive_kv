@@ -336,8 +336,6 @@ public class hi<
 		return mealym;
 	}
 
-	// dddddddddddddddddddddddddddddddd
-
 	private static CompactMealy<String, Word<String>> LoadMealy(File fsm_file) throws Exception {
 		InputModelDeserializer<String, CompactMealy<String, Word<String>>> parser = DOTParsers
 				.mealy(MEALY_EDGE_WORD_STR_PARSER);

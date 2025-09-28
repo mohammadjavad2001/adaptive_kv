@@ -79,6 +79,7 @@ public class Experiment<A extends Object> {
     public void setDiscrtree(MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> discrtree) {
         this.discrtree = discrtree;
     }
+    
     public A run(boolean first) {
         
         if (this.finalHypothesis != null) {
@@ -190,6 +191,7 @@ public class Experiment<A extends Object> {
                 if(rounds.getCount()==4 && first){
                     MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = kvLearner.getDiscriminationTree();
                     setDiscrtree(tree_round2);
+                    System.out.println("PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP");
                     return hyp;
 
                     // tree_round2.getEdgesBetween(null, null);
