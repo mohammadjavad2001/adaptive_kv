@@ -25,7 +25,9 @@ import de.learnlib.ds.MultiDTree;
 import de.learnlib.filter.statistic.Counter;
 import de.learnlib.util.statistics.SimpleProfiler;
 import net.automatalib.automata.fsa.DFA;
-import net.automatalib.automata.transducers.MealyMachine;
+// import net.automatalib.automata.transducers.MealyMachine;
+import de.learnlib.ds.MealyMachine;
+
 import net.automatalib.visualization.Visualization;
 import net.automatalib.words.Alphabet;
 import net.automatalib.words.Word;
@@ -214,9 +216,9 @@ public class Experiment<A extends Object> {
             super(learningAlgorithm, equivalenceAlgorithm, inputs);
         }
         public MealyExperiment(
-            EquivalenceOracle<? super MealyMachine<?, I, ?, O>, I, Word<O>> equivalenceAlgorithm
+            LearningAlgorithm<? extends MealyMachine<?, I, ?, O>, I, Word<O>> learningAlgorithm
             ) {
-            super(null, equivalenceAlgorithm, null);
+            super(learningAlgorithm,null, null);
         }
 
                 
@@ -228,9 +230,9 @@ public class Experiment<A extends Object> {
         //     super(learningAlgorithm,null, null);
         // }
         public static void f() {
-            EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = null;
-		Experiment.MealyExperiment<String, Word<String>> experiment = 
-		new Experiment.MealyExperiment<String, Word<String>>(eqOracle);
+        //     EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = null;
+		// Experiment.MealyExperiment<String, Word<String>> experiment = 
+		// new Experiment.MealyExperiment<String, Word<String>>(eqOracle);
 		
         }
 

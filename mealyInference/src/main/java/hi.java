@@ -544,11 +544,11 @@ public class hi<
 		// MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> discriminationTree = new MultiDTree<I, Word<O>, StateInfo<I, Word<O>>>;
 		// MealyMachine<?, String, ?, Word<String>> ghooz = null;
 					
-		Experiment.MealyExperiment<String, Word<String>> experiment = 
-		new Experiment.MealyExperiment<String, Word<String>>(learner, eqOracle, combinedAlphabet);
-		// (de.learnlib.api.oracle.EquivalenceOracle<? super net.automatalib.automata.transducers.MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>>)
 		// Experiment.MealyExperiment<String, Word<String>> experiment = 
-		// new Experiment.MealyExperiment<String, Word<String>>(eqOracle);
+		// new Experiment.MealyExperiment<String, Word<String>>(learner, eqOracle, combinedAlphabet);
+		// (de.learnlib.api.oracle.EquivalenceOracle<? super net.automatalib.automata.transducers.MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>>)
+		Experiment.MealyExperiment<String, Word<String>> experiment = 
+		new Experiment.MealyExperiment<String, Word<String>>(learner);
 		
 		int[] statistics_array=new int[6];
 		
