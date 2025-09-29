@@ -28,14 +28,14 @@ import de.learnlib.oracle.equivalence.WpMethodEQOracle;
 import de.learnlib.ds.RandomWalkEQOracle;
 import de.learnlib.ds.SULOracle;
 // import de.learnlib.util.Experiment;
-import de.learnlib.algorithms.kv.Experiment;
+import de.learnlib.algorithms.kv.Experiment; 
 import de.learnlib.algorithms.kv.KearnsVaziraniMealyBuilder;
 import de.learnlib.util.statistics.SimpleProfiler;
 
 // import net.automatalib.automata.transducers.MealyMachine;
 import de.learnlib.ds.MealyMachine;
-import de.learnlib.ds.CompactMealy;
-// import net.automatalib.automata.transducers.impl.compact.CompactMealy;
+
+import net.automatalib.automata.transducers.impl.compact.CompactMealy;
 import net.automatalib.commons.util.Pair;
 import net.automatalib.serialization.InputModelDeserializer;
 import net.automatalib.serialization.dot.DOTParsers;
