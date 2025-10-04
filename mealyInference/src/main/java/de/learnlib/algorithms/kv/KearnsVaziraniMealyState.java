@@ -3,7 +3,8 @@ package de.learnlib.algorithms.kv;
 
 import de.learnlib.ds.StateInfo;
 import de.learnlib.ds.MultiDTree;
-import net.automatalib.automata.transducers.impl.compact.CompactMealy;
+// import net.automatalib.automata.transducers.impl.compact.CompactMealy;
+import de.learnlib.ds.CompactMealy;
 import net.automatalib.words.Word;
 import java.io.Serializable;
 import java.util.List;

@@ -40,8 +40,14 @@ import de.learnlib.ds.AbstractWordBasedDTNode;
 import de.learnlib.datastructure.discriminationtree.model.LCAInfo;
 import de.learnlib.util.mealy.MealyUtil;
 import net.automatalib.SupportsGrowingAlphabet;
-import net.automatalib.automata.transducers.MealyMachine;
-import net.automatalib.automata.transducers.impl.compact.CompactMealy;
+
+// import net.automatalib.automata.transducers.MealyMachine;
+import de.learnlib.ds.MealyMachine;
+
+import de.learnlib.ds.CompactMealy;
+// import net.automatalib.automata.transducers.impl.compact.CompactMealy;
+
+
 import net.automatalib.automata.transducers.impl.compact.CompactMealyTransition;
 import net.automatalib.words.Alphabet;
 import net.automatalib.words.Word;
@@ -133,12 +139,15 @@ public class KearnsVaziraniMealy<I, O>
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public MealyMachine<?, I, ?, O> getHypothesisModel() {
         if (hypothesis.size() == 0) {
             throw new IllegalStateException("Not started");
         }
-        return hypothesis;
+        return (MealyMachine<?, I, ?, O>) (MealyMachine) hypothesis;
     }
+    
+    
     public void setDiscriminationTree(MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> discriminationTree) {
         this.discriminationTree = discriminationTree;
     }

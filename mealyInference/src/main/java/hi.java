@@ -494,11 +494,13 @@ public class hi<
 		for (String symbol : productAlphabet) {
 			System.out.println("  - " + symbol);
 			// Only add if it's not already in our collection (avoid duplicates)
+			
 			if (!allInputAlphabets.contains(symbol)) {
 				System.out.println("EEE"+symbol);
 				allInputAlphabets.add(symbol);
+
+				}
 			}
-		}
 				
 		System.out.println("Combined alphabet now has " + allInputAlphabets.size() + " unique symbols");
 		Alphabet<String> combinedAlphabet = Alphabets.fromCollection(allInputAlphabets);

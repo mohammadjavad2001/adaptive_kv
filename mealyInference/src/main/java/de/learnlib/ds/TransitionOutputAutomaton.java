@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 package de.learnlib.ds;
-import net.automatalib.automata.concepts.DetSuffixOutputAutomaton;
-import de.learnlib.ds.Output;
+
 import java.util.Collection;
 
+import de.learnlib.ds.Output;
+import net.automatalib.automata.concepts.DetSuffixOutputAutomaton;
 import net.automatalib.ts.output.DeterministicTransitionOutputTS;
 import net.automatalib.words.Word;
 import net.automatalib.words.WordBuilder;
