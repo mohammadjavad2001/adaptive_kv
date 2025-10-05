@@ -139,12 +139,11 @@ public class KearnsVaziraniMealy<I, O>
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public MealyMachine<?, I, ?, O> getHypothesisModel() {
         if (hypothesis.size() == 0) {
             throw new IllegalStateException("Not started");
         }
-        return (MealyMachine<?, I, ?, O>) (MealyMachine) hypothesis;
+        return hypothesis;
     }
     
     
