@@ -408,7 +408,7 @@ public class hi<
 //             System.exit(1);
 //         }
 		String[] a54= {".\\alternative_experiments\\Minepump_SPL\\products_3wise"
-			,".\\experiments\\Minepump_SPL\\products_3wise"};
+			,".\\alternative_experiments\\Minepump_SPL\\products_3wise"};
 		String[] a213={"00001_fsm.dot","00004_fsm.dot"};
 		
 		for(int i=0;i<2;i++){
