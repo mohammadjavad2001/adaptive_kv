@@ -92,6 +92,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.automatalib.words.WordBuilder;
 import net.automatalib.words.impl.Alphabets;
+import net.automatalib.words.GrowingAlphabet;
+import net.automatalib.words.impl.GrowingMapAlphabet;
 import java.util.*;
 import net.automatalib.words.Alphabet;
 import net.automatalib.graphs.concepts.GraphViewable;
@@ -533,10 +535,10 @@ public class hi<
 
 	if (i==0){	
 		// Product 1: Create learner with its alphabet and save for later
-		// Convert to GrowingAlphabet so we can add symbols later for adaptive learning
-		product1Alphabet = Alphabets.fromList(new ArrayList<>(productAlphabet));
+		// CRITICAL: Use GrowingMapAlphabet so we can add symbols later for adaptive learning
+		product1Alphabet = new GrowingMapAlphabet<>(productAlphabet);
 		learner = builder.withAlphabet(product1Alphabet).create(null);
-		System.out.println("Product 1: Initialized with GrowingAlphabet, size = " + product1Alphabet.size());
+		System.out.println("Product 1: Initialized with GrowingMapAlphabet, size = " + product1Alphabet.size());
 	}
 	
 	else{
@@ -549,14 +551,25 @@ public class hi<
 		// Create learner with Product 1's alphabet and the saved tree
 		learner = builder.withAlphabet(product1Alphabet).create(tree_round2);
 		
-		// Now add NEW symbols from current product that weren't in Product 1
-		System.out.println("  Adding new symbols for adaptive learning:");
-		for (String symbol : productAlphabet) {
-			if (!product1Alphabet.containsSymbol(symbol)) {
-				System.out.println("    + Adding new symbol: " + symbol);
-				learner.addAlphabetSymbol(symbol);  // Extends alphabet dynamically
-			}
+	// Now add NEW symbols from current product that weren't in Product 1
+	System.out.println("  Adding new symbols for adaptive learning:");
+	System.out.println("  DEBUG: Product1 alphabet contains:");
+	for (String s : product1Alphabet) {
+		System.out.println("    P1: '" + s + "' (length=" + s.length() + ")");
+	}
+	System.out.println("  DEBUG: Current product alphabet contains:");
+	for (String s : productAlphabet) {
+		System.out.println("    P" + i + ": '" + s + "' (length=" + s.length() + ")");
+	}
+	
+	for (String symbol : productAlphabet) {
+		if (!product1Alphabet.containsSymbol(symbol)) {
+			System.out.println("    + Adding new symbol: '" + symbol + "' (length=" + symbol.length() + ")");
+			learner.addAlphabetSymbol(symbol);  // Extends alphabet dynamically
+		} else {
+			System.out.println("    - Symbol already exists: '" + symbol + "'");
 		}
+	}
 		
 		System.out.println("Learner Alphabet Symbols++++++++++++");
 		System.out.println(learner.get_alphabet_symbol());
@@ -576,9 +589,9 @@ public class hi<
 		// MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> discriminationTree = new MultiDTree<I, Word<O>, StateInfo<I, Word<O>>>;
 		// MealyMachine<?, String, ?, Word<String>> ghooz = null;
 					
-	// Use the current product's alphabet for the experiment
+	// Use the learner's alphabet for the experiment (already normalized and extended if needed)
 	Experiment.MealyExperiment<String, Word<String>> experiment = 
-	new Experiment.MealyExperiment<String, Word<String>>(learner, eqOracle, productAlphabet);
+	new Experiment.MealyExperiment<String, Word<String>>(learner, eqOracle, learner.get_alphabet_symbol());
 		// (de.learnlib.api.oracle.EquivalenceOracle<? super net.automatalib.automata.transducers.MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>>)
 		// Experiment.MealyExperiment<String, Word<String>> experiment = 
 		// new Experiment.MealyExperiment<String, Word<String>>(eqOracle);
