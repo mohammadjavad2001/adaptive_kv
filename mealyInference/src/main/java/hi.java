@@ -118,8 +118,6 @@ public class hi<
 	// MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> tree_round2 = null;
 	// Add static ArrayList to store all input alphabets
 	private static ArrayList<String> allInputAlphabets = new ArrayList<>();
-	// Store Product 1's alphabet for adaptive learning
-	private static Alphabet<String> product1Alphabet = null;
 
 	private static int ExtractValue(String string_1) {
 		// TODO Auto-generated method stub
@@ -531,41 +529,22 @@ public class hi<
 		// KearnsVaziraniMealy<MealyMachine<?, String, ?, Word<String>>, String, Word<String>> learner = null;											
         KearnsVaziraniMealy<String, Word<String>> learner=null;
 
-	if (i==0){	
-		// Product 1: Create learner with its alphabet and save for later
-		// Convert to GrowingAlphabet so we can add symbols later for adaptive learning
-		product1Alphabet = Alphabets.fromList(new ArrayList<>(productAlphabet));
-		learner = builder.withAlphabet(product1Alphabet).create(null);
-		System.out.println("Product 1: Initialized with GrowingAlphabet, size = " + product1Alphabet.size());
-	}
-	
-	else{
-		// Product 2+: Adaptive Learning - Reuse tree from Product 1
-		// CRITICAL: Must use Product 1's alphabet when loading the tree!
-		System.out.println("Product " + i + ": Adaptive learning using saved tree");
-		System.out.println("  Product 1 alphabet size: " + product1Alphabet.size());
-		System.out.println("  Current product alphabet size: " + productAlphabet.size());
-		
-		// Create learner with Product 1's alphabet and the saved tree
-		learner = builder.withAlphabet(product1Alphabet).create(tree_round2);
-		
-		// Now add NEW symbols from current product that weren't in Product 1
-		System.out.println("  Adding new symbols for adaptive learning:");
-		for (String symbol : productAlphabet) {
-			if (!product1Alphabet.containsSymbol(symbol)) {
-				System.out.println("    + Adding new symbol: " + symbol);
-				learner.addAlphabetSymbol(symbol);  // Extends alphabet dynamically
-			}
+		if (i==0){	
+			learner = builder.withAlphabet(productAlphabet).create(null);
 		}
 		
-		System.out.println("Learner Alphabet Symbols++++++++++++");
-		System.out.println(learner.get_alphabet_symbol());
-		
-		System.out.println("ROUND@@@@@@INIT DISCRIMINATION TREE");
-		MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> treeinit = learner.getDiscriminationTree();
-		Visualization.visualize(treeinit, true);
-		System.out.println("RRRRRRRRRRRRRRRRRRRR");
-	}
+		else{
+			learner = builder.withAlphabet(combinedAlphabet).create(tree_round2);
+			// learner = builder.withAlphabet(combinedAlpha.bet).create(tree_round2);
+			// builder.setAlphabet(productAlphabet); 
+			System.out.println("Learner Alphabet Symbols++++++++++++");
+			System.out.println(learner.get_alphabet_symbol());
+			
+			System.out.println("ROUND@@@@@@INIT DISCRIMINATION TREE");
+			MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> treeinit = learner.getDiscriminationTree();
+			Visualization.visualize(treeinit, true);
+			System.out.println("RRRRRRRRRRRRRRRRRRRR");
+		}
 		// if (i == 1 && tree_round2 != null) {
 				// System.out.println("BBBBBBBBB"EEE);
 			// builder.setDiscriminationTree(tree_round2);
@@ -576,9 +555,8 @@ public class hi<
 		// MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> discriminationTree = new MultiDTree<I, Word<O>, StateInfo<I, Word<O>>>;
 		// MealyMachine<?, String, ?, Word<String>> ghooz = null;
 					
-	// Use the current product's alphabet for the experiment
-	Experiment.MealyExperiment<String, Word<String>> experiment = 
-	new Experiment.MealyExperiment<String, Word<String>>(learner, eqOracle, productAlphabet);
+		Experiment.MealyExperiment<String, Word<String>> experiment = 
+		new Experiment.MealyExperiment<String, Word<String>>(learner, eqOracle, combinedAlphabet);
 		// (de.learnlib.api.oracle.EquivalenceOracle<? super net.automatalib.automata.transducers.MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>>)
 		// Experiment.MealyExperiment<String, Word<String>> experiment = 
 		// new Experiment.MealyExperiment<String, Word<String>>(eqOracle);
