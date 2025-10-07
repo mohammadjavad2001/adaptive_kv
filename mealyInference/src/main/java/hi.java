@@ -228,147 +228,147 @@ public class hi<
 	public static final Word<String> OMEGA_SYMBOL = Word.fromLetter("Ω");
 
 
-	public static CompactMealy<String, Word<String>> loadMealyMachineFromDot3(File f) throws Exception {
+    	public static CompactMealy<String, Word<String>> loadMealyMachineFromDot3(File f) throws Exception {
 
-		Pattern kissLine = Pattern.compile("\\s*([a-zA-Z0-9]+)\\s+->\\s+([a-zA-Z0-9]+)\\s*\\[label=[\"<](.+)[\">]\\];?");
-		System.out.println("VVVVVVVVVVVVVVVVVVV");
-		BufferedReader br = new BufferedReader(new FileReader(f));
-		
-		List<String[]> trs = new ArrayList<String[]>();
-		System.out.println("CCCCCCCCCC");
-		HashSet<String> abcSet = new HashSet<>();
-		
-		//		int count = 0;
-		System.out.println("WWWWWWWW");
-		while(br.ready()){
-			String line = br.readLine();
-			Matcher m = kissLine.matcher(line);
-			if(m.matches()){
-				//				System.out.println(m.group(0));
-				//				System.out.println(m.group(1));
-				//				System.out.println(m.group(2));
-				//				System.out.println(m.group(3));
-				//				System.out.println(m.group(4));
+    		Pattern kissLine = Pattern.compile("\\s*([a-zA-Z0-9]+)\\s+->\\s+([a-zA-Z0-9]+)\\s*\\[label=[\"<](.+)[\">]\\];?");
+            System.out.println("VVVVVVVVVVVVVVVVVVV");
+    		BufferedReader br = new BufferedReader(new FileReader(f));
+    		
+    		List<String[]> trs = new ArrayList<String[]>();
+            System.out.println("CCCCCCCCCC");
+    		HashSet<String> abcSet = new HashSet<>();
+    		
+    		//		int count = 0;
+            System.out.println("WWWWWWWW");
+    		while(br.ready()){
+    			String line = br.readLine();
+    			Matcher m = kissLine.matcher(line);
+    			if(m.matches()){
+    				//				System.out.println(m.group(0));
+    				//				System.out.println(m.group(1));
+    				//				System.out.println(m.group(2));
+    				//				System.out.println(m.group(3));
+    				//				System.out.println(m.group(4));
 
-				String[] tr = new String[4];
-				tr[0] = m.group(1);
-				tr[1] = m.group(3); 
+    				String[] tr = new String[4];
+    				tr[0] = m.group(1);
+    				tr[1] = m.group(3); 
 //    				if(!abc.contains(tr[1])){
 //    					abc.add(tr[1]);
 //    				}
 //    				tr[2] = m.group(4);
-				tr[3] = m.group(2);
-				if(tr[1].contains("<br />")){
-					String trr[] = tr[1].split("<br />");
-					tr[1]=trr[0];
-					tr[2]=trr[1];
-					trr = tr[1].split(" \\| ");
-					for (String string : trr) {
-						String trrr[] = new String[4];
-						trrr[0]= tr[0];
-						trrr[1]= string;
-						trrr[2]= tr[2];
-						trrr[3]= tr[3];
-						trs.add(trrr);
-						abcSet.add(trrr[1]);
-					}
-				}else{
-					String trr[] = tr[1].split("\\s*/\\s*");
-					tr[1]=trr[0];
-					tr[2]=trr[1];
-					trs.add(tr);
-					abcSet.add(tr[1]); 
-				}
-				
-				
-			}
-			//			count++;
-		}
+    				tr[3] = m.group(2);
+    				if(tr[1].contains("<br />")){
+    					String trr[] = tr[1].split("<br />");
+    					tr[1]=trr[0];
+    					tr[2]=trr[1];
+    					trr = tr[1].split(" \\| ");
+    					for (String string : trr) {
+    						String trrr[] = new String[4];
+    						trrr[0]= tr[0];
+    						trrr[1]= string;
+    						trrr[2]= tr[2];
+    						trrr[3]= tr[3];
+    						trs.add(trrr);
+    						abcSet.add(trrr[1]);
+    					}
+    				}else{
+    					String trr[] = tr[1].split("\\s*/\\s*");
+    					tr[1]=trr[0];
+    					tr[2]=trr[1];
+    					trs.add(tr);
+    					abcSet.add(tr[1]); 
+    				}
+    				
+    				
+    			}
+    			//			count++;
+    		}
 
-		br.close();
+    		br.close();
 
-		List abc = new ArrayList<>(abcSet);
-		Collections.sort(abc);
-		Alphabet<String> alphabet = Alphabets.fromCollection(abc);
-		CompactMealy<String, Word<String>> mealym = new CompactMealy<String, Word<String>>(alphabet);
+    		List abc = new ArrayList<>(abcSet);
+    		Collections.sort(abc);
+    		Alphabet<String> alphabet = Alphabets.fromCollection(abc);
+    		CompactMealy<String, Word<String>> mealym = new CompactMealy<String, Word<String>>(alphabet);
 
-		Map<String,Integer> states = new HashMap<String,Integer>();
-		Integer si=null,sf=null;
+    		Map<String,Integer> states = new HashMap<String,Integer>();
+    		Integer si=null,sf=null;
 
-		Map<String,Word<String>> words = new HashMap<String,Word<String>>();		
-
-
-		WordBuilder<String> aux = new WordBuilder<>();
-
-		aux.clear();
-		aux.append(OMEGA_SYMBOL);
-		words.put(OMEGA_SYMBOL.toString(), aux.toWord());
+    		Map<String,Word<String>> words = new HashMap<String,Word<String>>();		
 
 
-		for (String[] tr : trs) {
-			if(!states.containsKey(tr[0])) states.put(tr[0], mealym.addState());
-			if(!states.containsKey(tr[3])) states.put(tr[3], mealym.addState());
+    		WordBuilder<String> aux = new WordBuilder<>();
 
-			si = states.get(tr[0]);
-			sf = states.get(tr[3]);
-
-			if(!words.containsKey(tr[1])){
-				aux.clear();
-				aux.add(tr[1]);
-				words.put(tr[1], aux.toWord());
-			}
-			if(!words.containsKey(tr[2])){
-				aux.clear();
-				aux.add(tr[2]);
-				words.put(tr[2], aux.toWord());
-			}
-			mealym.addTransition(si, words.get(tr[1]).toString(), sf, words.get(tr[2]));
-		}
-
-		for (Integer st : mealym.getStates()) {
-			for (String in : alphabet) {
-				//				System.out.println(mealym.getTransition(st, in));
-				if(mealym.getTransition(st, in)==null){
-					mealym.addTransition(st, in, st, OMEGA_SYMBOL);
-				}
-			}
-		}
+    		aux.clear();
+    		aux.append(OMEGA_SYMBOL);
+    		words.put(OMEGA_SYMBOL.toString(), aux.toWord());
 
 
-		mealym.setInitialState(states.get("s0"));
+    		for (String[] tr : trs) {
+    			if(!states.containsKey(tr[0])) states.put(tr[0], mealym.addState());
+    			if(!states.containsKey(tr[3])) states.put(tr[3], mealym.addState());
 
-		return mealym;
-	}
-	
-	
-	
-	
-	//dddddddddddddddddddddddddddddddd
-	
-	private static CompactMealy<String, Word<String>> LoadMealy(File fsm_file) throws Exception {
-		InputModelDeserializer<String, CompactMealy<String, Word<String>>> parser = 
-			DOTParsers.mealy(MEALY_EDGE_WORD_STR_PARSER);
+    			si = states.get(tr[0]);
+    			sf = states.get(tr[3]);
 
-		CompactMealy<String, Word<String>> mealy = null;
-		String fileName = fsm_file.getName();
+    			if(!words.containsKey(tr[1])){
+    				aux.clear();
+    				aux.add(tr[1]);
+    				words.put(tr[1], aux.toWord());
+    			}
+    			if(!words.containsKey(tr[2])){
+    				aux.clear();
+    				aux.add(tr[2]);
+    				words.put(tr[2], aux.toWord());
+    			}
+    			mealym.addTransition(si, words.get(tr[1]).toString(), sf, words.get(tr[2]));
+    		}
 
-		if (fileName.endsWith("txt")) {
-			try {
-				mealy = Utils.getInstance().loadMealyMachine(fsm_file);
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		} else if (fileName.endsWith("dot")) {
-			try (InputStream is = new FileInputStream(fsm_file)) {
-				mealy = loadMealyMachineFromDot3(fsm_file);
-				mealy = parser.readModel(is).model;
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-		return mealy;
-	}
-	
+    		for (Integer st : mealym.getStates()) {
+    			for (String in : alphabet) {
+    				//				System.out.println(mealym.getTransition(st, in));
+    				if(mealym.getTransition(st, in)==null){
+    					mealym.addTransition(st, in, st, OMEGA_SYMBOL);
+    				}
+    			}
+    		}
+
+
+    		mealym.setInitialState(states.get("s0"));
+
+    		return mealym;
+    	}
+        
+        
+        
+        
+        //dddddddddddddddddddddddddddddddd
+    	
+        private static CompactMealy<String, Word<String>> LoadMealy(File fsm_file) throws Exception {
+            InputModelDeserializer<String, CompactMealy<String, Word<String>>> parser = 
+                DOTParsers.mealy(MEALY_EDGE_WORD_STR_PARSER);
+
+            CompactMealy<String, Word<String>> mealy = null;
+            String fileName = fsm_file.getName();
+
+            if (fileName.endsWith("txt")) {
+                try {
+                    mealy = Utils.getInstance().loadMealyMachine(fsm_file);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            } else if (fileName.endsWith("dot")) {
+                try (InputStream is = new FileInputStream(fsm_file)) {
+                	mealy = loadMealyMachineFromDot3(fsm_file);
+                    mealy = parser.readModel(is).model;
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            return mealy;
+        }
+        
 
 	// private static CompactMealy<String, Word<String>> LoadMealy(File fsm_file) throws Exception {
 	// 	InputModelDeserializer<String, CompactMealy<String, Word<String>>> parser = DOTParsers
