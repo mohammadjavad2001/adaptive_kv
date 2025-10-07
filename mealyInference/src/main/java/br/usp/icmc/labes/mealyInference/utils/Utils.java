@@ -138,15 +138,15 @@ public class Utils {
 				//				System.out.println(m.group(3));
 				//				System.out.println(m.group(4));
 
-				String[] tr = new String[4];
-				tr[0] = m.group(1);
-				tr[1] = m.group(2); 
-				if(!abcSet.contains(tr[1])){
-					abcSet.add(tr[1]);
-					abc.add(tr[1]);					
-				}
-				tr[2] = m.group(3);
-				tr[3] = m.group(4);
+			String[] tr = new String[4];
+			tr[0] = m.group(1).trim();
+			tr[1] = m.group(2).trim();  // Remove whitespace from symbols!
+			if(!abcSet.contains(tr[1])){
+				abcSet.add(tr[1]);
+				abc.add(tr[1]);					
+			}
+			tr[2] = m.group(3).trim();
+			tr[3] = m.group(4).trim();
 				trs.add(tr);
 			}
 			//			count++;

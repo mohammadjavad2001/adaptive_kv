@@ -468,118 +468,175 @@ public class hi<
 			return;
 		}
 
-		StatisticSUL<String, Word<String>> eq_sym = new SymbolCounterSUL<>("EQ", sulSim);
-		StatisticSUL<String, Word<String>> eq_rst = new ResetCounterSUL<>("EQ", eq_sym);
-
-		SUL<String, Word<String>> eq_sul = eq_rst;
-
-		// Create a SUL (System Under Learning) from the Mealy machine
-		MealySimulatorSUL<String, Word<String>> sul = new MealySimulatorSUL<>(mealyMachine);
-		EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = null;
-		eqOracle = buildEqOracle(rnd_seed, line, mealyMachine, eq_sul);
-
-		// Set up membership oracle with counters
-		SymbolCounterSUL<String, Word<String>> mqSym = new SymbolCounterSUL<>("MQ", sul);
-		ResetCounterSUL<String, Word<String>> mqRst = new ResetCounterSUL<>("MQ", mqSym);
-		MembershipOracle<String, Word<Word<String>>> mqOracle = new SULOracle<String, Word<String>>(mq_sul);
-
-		// JointCounterOracle<String, Word<Word<String>>> mqCounter = new JointCounterOracle<>(mqOracle);
-		// CounterSymbolQueryOracle<String, Word<Word<String>>> mqCounter = 
-		// new CounterSymbolQueryOracle<>(mqOracle);
-
-		//***************************************
-//		CounterSymbolQueryOracle<String, Word<Word<String>>> symbolCounter = 
-//			    new CounterSymbolQueryOracle<>(membershipOracle);
-
-		//***************************************
-		
-				// de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealyBuilder<String, Word<String>> builder = new de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealyBuilder<String, Word<String>>();
-
-
-
-		// Alphabet<String> alphbe22 = mealyMachine.getInputAlphabet();
-		
-		// Get the current product's input alphabet
-		
-		Alphabet<String> productAlphabet = mealyMachine.getInputAlphabet();
-		
-		// Add all symbols from this product's alphabet to our combined collection
-		System.out.println("\nProduct " + i + " alphabet contains " + productAlphabet.size() + " symbols:");
-		for (String symbol : productAlphabet) {
-			System.out.println("  - " + symbol);
-			// Only add if it's not already in our collection (avoid duplicates)
-			if (!allInputAlphabets.contains(symbol)) {
-				System.out.println("EEE"+symbol);
-				allInputAlphabets.add(symbol);
-			}
+	// Get the current product's input alphabet
+	Alphabet<String> productAlphabet = mealyMachine.getInputAlphabet();
+	
+	// Add all symbols from this product's alphabet to our combined collection
+	System.out.println("\nProduct " + i + " alphabet contains " + productAlphabet.size() + " symbols:");
+	for (String symbol : productAlphabet) {
+		System.out.println("  - " + symbol);
+		// Only add if it's not already in our collection (avoid duplicates)
+		if (!allInputAlphabets.contains(symbol)) {
+			System.out.println("EEE"+symbol);
+			allInputAlphabets.add(symbol);
 		}
-				
-		System.out.println("Combined alphabet now has " + allInputAlphabets.size() + " unique symbols");
-		Alphabet<String> combinedAlphabet = Alphabets.fromCollection(allInputAlphabets);
-		
-
-		for(String w23:combinedAlphabet){
-			System.out.println("=== +"+ w23);
-		}
-		
-		KearnsVaziraniMealyBuilder<Object, String, Word<String>> builder = new KearnsVaziraniMealyBuilder<>();
-		builder.setOracle(mqOracle);
-		builder.setAlphabet(combinedAlphabet); 
-
-		
-		Alphabet<String> a413 = mealyMachine.getInputAlphabet();
-		System.out.println();
-
-		// KearnsVaziraniMealy<MealyMachine<?, String, ?, Word<String>>, String, Word<String>> learner = null;											
-        KearnsVaziraniMealy<String, Word<String>> learner=null;
-
-	if (i==0){	
-		// ========== PRODUCT 1: Initialize from scratch ==========
-		// Create GrowingMapAlphabet so we can add symbols later
-		product1Alphabet = new GrowingMapAlphabet<>(productAlphabet);
-		learner = builder.withAlphabet(product1Alphabet).create(null);
-		System.out.println("Product " + i + ": Learning from scratch");
-		System.out.println("  Initial alphabet size = " + product1Alphabet.size());
+	}
+			
+	System.out.println("Combined alphabet now has " + allInputAlphabets.size() + " unique symbols");
+	Alphabet<String> combinedAlphabet = Alphabets.fromCollection(allInputAlphabets);
+	
+	for(String w23:combinedAlphabet){
+		System.out.println("=== +"+ w23);
 	}
 	
-	else{
-		// ========== PRODUCT " + i + ": Incremental Adaptive Learning ==========
-		// Reuse tree from PREVIOUS product (not just first)
-		System.out.println("Product " + i + ": Incremental adaptive learning");
-		System.out.println("  Previous alphabet size: " + product1Alphabet.size());
-		System.out.println("  Current product alphabet size: " + productAlphabet.size());
-		
-		// Load tree from previous product
-		learner = builder.withAlphabet(product1Alphabet).create(tree_round2);
-		
-		// Add NEW symbols from current product
-		System.out.println("  Adding new symbols:");
-		int newSymbolCount = 0;
-		for (String symbol : productAlphabet) {
-			if (!product1Alphabet.containsSymbol(symbol)) {
-				System.out.println("    + Adding: '" + symbol + "'");
-				learner.addAlphabetSymbol(symbol);
-				newSymbolCount++;
+	System.out.println();
+
+	// KearnsVaziraniMealy<MealyMachine<?, String, ?, Word<String>>, String, Word<String>> learner = null;											
+    KearnsVaziraniMealy<String, Word<String>> learner=null;
+	
+	// Declare adaptive statistics variables outside if/else so they're accessible later
+	StatisticSUL<String, Word<String>> mq_sym_adaptive = null;
+	StatisticSUL<String, Word<String>> mq_rst_adaptive = null;
+
+if (i==0){	
+	// ========== PRODUCT 0: Initialize from scratch ==========
+	// Create GrowingMapAlphabet so we can add symbols later
+	product1Alphabet = new GrowingMapAlphabet<>(productAlphabet);
+	
+	// Setup membership oracle 
+	MembershipOracle<String, Word<Word<String>>> mqOracle = new SULOracle<String, Word<String>>(mq_sul);
+	
+	KearnsVaziraniMealyBuilder<Object, String, Word<String>> builder = new KearnsVaziraniMealyBuilder<>();
+	builder.setOracle(mqOracle);
+	builder.setAlphabet(combinedAlphabet);
+	
+	learner = builder.withAlphabet(product1Alphabet).create(null);
+	System.out.println("Product " + i + ": Learning from scratch");
+	System.out.println("  Initial alphabet size = " + product1Alphabet.size());
+}
+
+else{
+	// ========== PRODUCT i: Incremental Adaptive Learning ==========
+	System.out.println("Product " + i + ": Incremental adaptive learning");
+	System.out.println("  Previous alphabet size: " + product1Alphabet.size());
+	System.out.println("  Current product alphabet size: " + productAlphabet.size());
+	
+	// First, extend learner alphabet with new symbols from current product
+	GrowingAlphabet<String> extendedAlphabet = (GrowingAlphabet<String>) product1Alphabet;
+	for (String symbol : productAlphabet) {
+		if (!extendedAlphabet.containsSymbol(symbol)) {
+			extendedAlphabet.addSymbol(symbol);
+		}
+	}
+	
+	// Create mealy with extended alphabet for MQ oracle
+	CompactMealy<String, Word<String>> mqMealy = new CompactMealy<>(extendedAlphabet);
+	
+	// Copy structure from original mealy
+	Map<Integer, Integer> stateMap = new HashMap<>();
+	for (Integer state : mealyMachine.getStates()) {
+		stateMap.put(state, mqMealy.addState());
+	}
+	mqMealy.setInitialState(stateMap.get(mealyMachine.getInitialState()));
+	
+	// Copy transitions for symbols that exist in product
+	for (Integer state : mealyMachine.getStates()) {
+		for (String input : productAlphabet) {
+			Integer succ = mealyMachine.getSuccessor(state, input);
+			Word<String> output = mealyMachine.getOutput(state, input);
+			if (succ != null) {
+				mqMealy.addTransition(stateMap.get(state), input, stateMap.get(succ), output);
 			}
 		}
-		System.out.println("  Total new symbols added: " + newSymbolCount);
-		System.out.println("  Updated alphabet size: " + learner.get_alphabet_symbol().size());
-		
-		// Visualize reused tree
-		System.out.println("DISCRIMINATION TREE (reused from product " + (i-1) + "):");
-		MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> treeinit = learner.getDiscriminationTree();
-		Visualization.visualize(treeinit, true);
 	}
-		// if (i == 1 && tree_round2 != null) {
-				// System.out.println("BBBBBBBBB"EEE);
-			// builder.setDiscriminationTree(tree_round2);
-			// builder.setDiscriminationTree(tree_round2);
-		// }
-		//settttttt
-					
-		// MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> discriminationTree = new MultiDTree<I, Word<O>, StateInfo<I, Word<O>>>;
-		// MealyMachine<?, String, ?, Word<String>> ghooz = null;
-					
+	
+	// Add self-loops for symbols not in current product
+	for (String symbol : extendedAlphabet) {
+		if (!productAlphabet.containsSymbol(symbol)) {
+			for (Integer state : mqMealy.getStates()) {
+				mqMealy.addTransition(state, symbol, state, Utils.OMEGA_SYMBOL);
+			}
+		}
+	}
+	
+	// Create MQ SUL and oracle with extended mealy
+	SUL<String, Word<String>> mqSulSim = new MealySimulatorSUL<>(mqMealy, Utils.OMEGA_SYMBOL);
+	mq_sym_adaptive = new SymbolCounterSUL<>("MQ", mqSulSim);
+	mq_rst_adaptive = new ResetCounterSUL<>("MQ", mq_sym_adaptive);
+	SUL<String, Word<String>> mq_sul_adaptive = mq_rst_adaptive;
+	MembershipOracle<String, Word<Word<String>>> mqOracle = new SULOracle<String, Word<String>>(mq_sul_adaptive);
+	
+	KearnsVaziraniMealyBuilder<Object, String, Word<String>> builder = new KearnsVaziraniMealyBuilder<>();
+	builder.setOracle(mqOracle);
+	builder.setAlphabet(combinedAlphabet);
+	
+	// Load tree from previous product
+	learner = builder.withAlphabet(product1Alphabet).create(tree_round2);
+	
+	// Add NEW symbols from current product
+	System.out.println("  Adding new symbols:");
+	int newSymbolCount = 0;
+	for (String symbol : productAlphabet) {
+		if (!product1Alphabet.containsSymbol(symbol)) {
+			System.out.println("    + Adding: '" + symbol + "'");
+			learner.addAlphabetSymbol(symbol);
+			newSymbolCount++;
+		}
+	}
+	System.out.println("  Total new symbols added: " + newSymbolCount);
+	System.out.println("  Updated alphabet size: " + learner.get_alphabet_symbol().size());
+	
+	// Visualize reused tree
+	System.out.println("DISCRIMINATION TREE (reused from product " + (i-1) + "):");
+	MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> treeinit = learner.getDiscriminationTree();
+	Visualization.visualize(treeinit, true);
+}
+
+	// Create a new Mealy machine with updated alphabet for equivalence oracle
+	CompactMealy<String, Word<String>> updatedMealy;
+	if (i > 0) {
+		// For adaptive learning, create mealy with learner's alphabet
+		Alphabet<String> learnerAlphabet = learner.get_alphabet_symbol();
+		updatedMealy = new CompactMealy<>(learnerAlphabet);
+		
+		// Copy structure from original mealy
+		Map<Integer, Integer> stateMap = new HashMap<>();
+		for (Integer state : mealyMachine.getStates()) {
+			stateMap.put(state, updatedMealy.addState());
+		}
+		updatedMealy.setInitialState(stateMap.get(mealyMachine.getInitialState()));
+		
+		// Copy transitions for symbols that exist in product
+		for (Integer state : mealyMachine.getStates()) {
+			for (String input : productAlphabet) {
+				Integer succ = mealyMachine.getSuccessor(state, input);
+				Word<String> output = mealyMachine.getOutput(state, input);
+				if (succ != null) {
+					updatedMealy.addTransition(stateMap.get(state), input, stateMap.get(succ), output);
+				}
+			}
+		}
+		
+		// Add self-loops for ALL symbols not in current product
+		for (String symbol : learnerAlphabet) {
+			if (!productAlphabet.containsSymbol(symbol)) {
+				for (Integer state : updatedMealy.getStates()) {
+					updatedMealy.addTransition(state, symbol, state, Utils.OMEGA_SYMBOL);
+				}
+			}
+		}
+	} else {
+		updatedMealy = mealyMachine;
+	}
+	
+	// Create SUL and EQ oracle with updated mealy
+	SUL<String, Word<String>> eqSulSim = new MealySimulatorSUL<>(updatedMealy, Utils.OMEGA_SYMBOL);
+	StatisticSUL<String, Word<String>> eq_sym = new SymbolCounterSUL<>("EQ", eqSulSim);
+	StatisticSUL<String, Word<String>> eq_rst = new ResetCounterSUL<>("EQ", eq_sym);
+	SUL<String, Word<String>> eq_sul = eq_rst;
+	
+	EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = null;
+	eqOracle = buildEqOracle(rnd_seed, line, updatedMealy, eq_sul);
 	// Use the learner's alphabet for the experiment (already normalized and extended if needed)
 	Experiment.MealyExperiment<String, Word<String>> experiment = 
 	new Experiment.MealyExperiment<String, Word<String>>(learner, eqOracle, learner.get_alphabet_symbol());
@@ -607,12 +664,15 @@ public class hi<
 	// System.out.println("  Tree depth/size: " + tree.getRoot().subtreeSize());
 	System.out.println("  Alphabet size: " + product1Alphabet.size());
 		
+		StatisticSUL<String, Word<String>> currentMqRst = (i == 0) ? mq_rst : mq_rst_adaptive;
+		StatisticSUL<String, Word<String>> currentMqSym = (i == 0) ? mq_sym : mq_sym_adaptive;
+		
 		statistics_array[0] += experiment.getRounds().getCount();
-		statistics_array[1] += ExtractValue(mq_rst.getStatisticalData().getSummary());
-		statistics_array[2] += ExtractValue(mq_sym.getStatisticalData().getSummary());
+		statistics_array[1] += ExtractValue(currentMqRst.getStatisticalData().getSummary());
+		statistics_array[2] += ExtractValue(currentMqSym.getStatisticalData().getSummary());
 		statistics_array[3] += ExtractValue(eq_rst.getStatisticalData().getSummary());
 		statistics_array[4] += ExtractValue(eq_sym.getStatisticalData().getSummary());
-		System.out.println(mq_rst.getStatisticalData());
+		System.out.println(currentMqRst.getStatisticalData());
 		
 		for (int j=0;j<5;j++){
 			System.out.println("vaa"+statistics_array[j]);
@@ -622,8 +682,8 @@ public class hi<
 	System.out.println("\n========== PRODUCT " + i + " LEARNING COMPLETED ==========");
 	System.out.println("Final hypothesis states: " + experiment.getFinalHypothesis().getStates().size());
 	System.out.println("Rounds (EQ queries): " + experiment.getRounds().getCount());
-	System.out.println("Membership queries - Resets: " + ExtractValue(mq_rst.getStatisticalData().getSummary()));
-	System.out.println("Membership queries - Symbols: " + ExtractValue(mq_sym.getStatisticalData().getSummary()));
+	System.out.println("Membership queries - Resets: " + ExtractValue(currentMqRst.getStatisticalData().getSummary()));
+	System.out.println("Membership queries - Symbols: " + ExtractValue(currentMqSym.getStatisticalData().getSummary()));
 	System.out.println("Equivalence queries - Resets: " + ExtractValue(eq_rst.getStatisticalData().getSummary()));
 	System.out.println("Equivalence queries - Symbols: " + ExtractValue(eq_sym.getStatisticalData().getSummary()));
 	if (i > 0) {
