@@ -22,7 +22,8 @@ import de.learnlib.oracle.equivalence.WMethodEQOracle;
 import de.learnlib.oracle.equivalence.WpMethodEQOracle;
 import de.learnlib.oracle.equivalence.mealy.RandomWalkEQOracle;
 import de.learnlib.oracle.membership.SULOracle;
-import de.learnlib.util.Experiment;
+// import de.learnlib.util.Experiment;
+import de.learnlib.algorithms.kv.Experiment1;
 import de.learnlib.util.statistics.SimpleProfiler;
 import net.automatalib.automata.transducers.MealyMachine;
 import net.automatalib.automata.transducers.impl.compact.CompactMealy;
@@ -31,6 +32,7 @@ import net.automatalib.serialization.InputModelDeserializer;
 import net.automatalib.serialization.dot.DOTParsers;
 import net.automatalib.visualization.VisualizationHelper;
 import net.automatalib.words.Word;
+import net.automatalib.visualization.Visualization;
 import org.apache.commons.cli.*;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import java.io.File;
@@ -297,10 +299,11 @@ public class App {
 //             System.exit(1);
 //         }
 
-    	
-        File productFile_2 = new File("E:\\learning\\Projectpayan\\software\\SPL_Learning\\experiments\\Minepump_SPL\\products_3wise", "00001_fsm.dot");
+// String[] a213={"00001_fsm.dot","00004_fsm.dot"};
+
+        File productFile_2 = new File(".\\alternative_experiments\\Minepump_SPL\\products_3wise", "00001_fsm.dot");
         System.out.print("Fvvvvvv");
-        CompactMealy<String, Word<String>> mealyMachine;
+        CompactMealy<String, Word<String>> mealyMachine = null;
 		try {
 			mealyMachine = loadMealyMachineFromDot3(productFile_2);
 		} catch (Exception e) {
@@ -359,7 +362,7 @@ public class App {
 
         KearnsVaziraniMealy<String, Word<String>> learner = builder.create();
 
-        Experiment.MealyExperiment<String, Word<String>> experiment = new Experiment.MealyExperiment<String, Word<String>>(learner, eqOracle,
+        Experiment1.MealyExperiment<String, Word<String>> experiment = new Experiment1.MealyExperiment<String, Word<String>>(learner, eqOracle,
                 mealyMachine.getInputAlphabet());
         // Run the experiment
         experiment.run();
@@ -370,6 +373,21 @@ public class App {
         System.out.println("Membership queries: " + mqRst.getStatisticalData());
         System.out.println("Equivalence queries: " + experiment.getRounds().getCount());
 
+        // Get the final hypothesis and alphabet for visualization
+        MealyMachine<?, String, ?, Word<String>> finalHypothesis = experiment.getFinalHypothesis();
+        Alphabet<String> alphabet = mealyMachine.getInputAlphabet();
+        
+        // Visualize the learned model
+        System.out.println("\nVisualizing learned model (Final Hypothesis)...");
+        Visualization.visualize(finalHypothesis, alphabet);
+        
+        // Visualize the original model
+        System.out.println("Visualizing original model...");
+        Visualization.visualize(mealyMachine, alphabet);
+        
+        // Visualize the discrimination tree
+        System.out.println("Visualizing discrimination tree...");
+        Visualization.visualize(learner.getDiscriminationTree(), true);
 
         SimpleProfiler.logResults();
     }
