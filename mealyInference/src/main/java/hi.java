@@ -534,50 +534,41 @@ public class hi<
         KearnsVaziraniMealy<String, Word<String>> learner=null;
 
 	if (i==0){	
-		// Product 1: Create learner with its alphabet and save for later
-		// CRITICAL: Use GrowingMapAlphabet so we can add symbols later for adaptive learning
+		// ========== PRODUCT 1: Initialize from scratch ==========
+		// Create GrowingMapAlphabet so we can add symbols later
 		product1Alphabet = new GrowingMapAlphabet<>(productAlphabet);
 		learner = builder.withAlphabet(product1Alphabet).create(null);
-		System.out.println("Product 1: Initialized with GrowingMapAlphabet, size = " + product1Alphabet.size());
+		System.out.println("Product " + i + ": Learning from scratch");
+		System.out.println("  Initial alphabet size = " + product1Alphabet.size());
 	}
 	
 	else{
-		// Product 2+: Adaptive Learning - Reuse tree from Product 1
-		// CRITICAL: Must use Product 1's alphabet when loading the tree!
-		System.out.println("Product " + i + ": Adaptive learning using saved tree");
-		System.out.println("  Product 1 alphabet size: " + product1Alphabet.size());
+		// ========== PRODUCT " + i + ": Incremental Adaptive Learning ==========
+		// Reuse tree from PREVIOUS product (not just first)
+		System.out.println("Product " + i + ": Incremental adaptive learning");
+		System.out.println("  Previous alphabet size: " + product1Alphabet.size());
 		System.out.println("  Current product alphabet size: " + productAlphabet.size());
 		
-		// Create learner with Product 1's alphabet and the saved tree
+		// Load tree from previous product
 		learner = builder.withAlphabet(product1Alphabet).create(tree_round2);
 		
-	// Now add NEW symbols from current product that weren't in Product 1
-	System.out.println("  Adding new symbols for adaptive learning:");
-	System.out.println("  DEBUG: Product1 alphabet contains:");
-	for (String s : product1Alphabet) {
-		System.out.println("    P1: '" + s + "' (length=" + s.length() + ")");
-	}
-	System.out.println("  DEBUG: Current product alphabet contains:");
-	for (String s : productAlphabet) {
-		System.out.println("    P" + i + ": '" + s + "' (length=" + s.length() + ")");
-	}
-	
-	for (String symbol : productAlphabet) {
-		if (!product1Alphabet.containsSymbol(symbol)) {
-			System.out.println("    + Adding new symbol: '" + symbol + "' (length=" + symbol.length() + ")");
-			learner.addAlphabetSymbol(symbol);  // Extends alphabet dynamically
-		} else {
-			System.out.println("    - Symbol already exists: '" + symbol + "'");
+		// Add NEW symbols from current product
+		System.out.println("  Adding new symbols:");
+		int newSymbolCount = 0;
+		for (String symbol : productAlphabet) {
+			if (!product1Alphabet.containsSymbol(symbol)) {
+				System.out.println("    + Adding: '" + symbol + "'");
+				learner.addAlphabetSymbol(symbol);
+				newSymbolCount++;
+			}
 		}
-	}
+		System.out.println("  Total new symbols added: " + newSymbolCount);
+		System.out.println("  Updated alphabet size: " + learner.get_alphabet_symbol().size());
 		
-		System.out.println("Learner Alphabet Symbols++++++++++++");
-		System.out.println(learner.get_alphabet_symbol());
-		
-		System.out.println("ROUND@@@@@@INIT DISCRIMINATION TREE");
+		// Visualize reused tree
+		System.out.println("DISCRIMINATION TREE (reused from product " + (i-1) + "):");
 		MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> treeinit = learner.getDiscriminationTree();
 		Visualization.visualize(treeinit, true);
-		System.out.println("RRRRRRRRRRRRRRRRRRRR");
 	}
 		// if (i == 1 && tree_round2 != null) {
 				// System.out.println("BBBBBBBBB"EEE);
@@ -607,10 +598,14 @@ public class hi<
 			experiment.run(false);
 		}
 	
-			// statistics array
-		MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree = learner.getDiscriminationTree();
-		// MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> 
-		tree_round2 = experiment.getDiscrtree();
+		// ========== SAVE FOR NEXT PRODUCT: Update tree AND alphabet ==========
+	MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree = learner.getDiscriminationTree();
+	tree_round2 = experiment.getDiscrtree();  // Tree for next product
+	product1Alphabet = (GrowingAlphabet<String>) learner.get_alphabet_symbol();  // Updated alphabet
+	
+	System.out.println("Saved for next product:");
+	// System.out.println("  Tree depth/size: " + tree.getRoot().subtreeSize());
+	System.out.println("  Alphabet size: " + product1Alphabet.size());
 		
 		statistics_array[0] += experiment.getRounds().getCount();
 		statistics_array[1] += ExtractValue(mq_rst.getStatisticalData().getSummary());
@@ -623,11 +618,20 @@ public class hi<
 			System.out.println("vaa"+statistics_array[j]);
 		}
 		
-		// Output results
-		System.out.println("Learning completed.");
-		System.out.println("Final hypothesis states: " + experiment.getFinalHypothesis().getStates().size());
-		System.out.println("Membership queries: " + mqRst.getStatisticalData());
-		System.out.println("Equivalence queries: " + experiment.getRounds().getCount());
+	// ========== METRICS FOR ADAPTIVE LEARNING EVALUATION ==========
+	System.out.println("\n========== PRODUCT " + i + " LEARNING COMPLETED ==========");
+	System.out.println("Final hypothesis states: " + experiment.getFinalHypothesis().getStates().size());
+	System.out.println("Rounds (EQ queries): " + experiment.getRounds().getCount());
+	System.out.println("Membership queries - Resets: " + ExtractValue(mq_rst.getStatisticalData().getSummary()));
+	System.out.println("Membership queries - Symbols: " + ExtractValue(mq_sym.getStatisticalData().getSummary()));
+	System.out.println("Equivalence queries - Resets: " + ExtractValue(eq_rst.getStatisticalData().getSummary()));
+	System.out.println("Equivalence queries - Symbols: " + ExtractValue(eq_sym.getStatisticalData().getSummary()));
+	if (i > 0) {
+		System.out.println("*** ADAPTIVE LEARNING BENEFIT ***");
+		System.out.println("  Reused tree from product " + (i-1));
+		System.out.println("  Alphabet extended: " + (learner.get_alphabet_symbol().size() - productAlphabet.size()) + " symbols");
+	}
+	System.out.println("====================================================\n");
 		LearnLogger logger = LearnLogger.getLogger(Infer_LearnLib.class);
 
 		SimpleProfiler.logResults();
