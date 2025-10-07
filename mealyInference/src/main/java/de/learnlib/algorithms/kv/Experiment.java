@@ -179,6 +179,7 @@ public class Experiment<A extends Object> {
                 profileStop(COUNTEREXAMPLE_PROFILE_KEY);
 
                 if (ce == null) {
+                    System.out.println("=============================Learned model is equivalent to the original model=========================");
                     return hyp;
                 }
 
@@ -192,7 +193,7 @@ public class Experiment<A extends Object> {
                     MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = kvLearner.getDiscriminationTree();
                     setDiscrtree(tree_round2);
                     System.out.println("PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP");
-                    return hyp;
+                    // return hyp;
 
                     // tree_round2.getEdgesBetween(null, null);
                     // MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> temp_tree= new MultiDTree<>(null);
