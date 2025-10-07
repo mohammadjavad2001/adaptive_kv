@@ -305,7 +305,7 @@ public class App {
         System.out.print("Fvvvvvv");
         CompactMealy<String, Word<String>> mealyMachine = null;
 		try {
-			mealyMachine = loadMealyMachineFromDot3(productFile_2);
+			mealyMachine = LoadMealy(productFile_2);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
