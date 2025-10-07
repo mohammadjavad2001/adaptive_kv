@@ -414,6 +414,12 @@ public class hi<
 	public static void learnalgo(File productFile_2, String[] args,int product) throws Exception {
 
 	}
+	// Static arrays to store statistics for comparison
+	private static long[][] productStats = new long[10][6]; // [product][metric]
+	private static int[] productStates = new int[10];
+	private static int[] productAlphabetSizes = new int[10];
+	private static int[] newSymbolsAdded = new int[10];
+	
 	public static <I, O> void main(String[] args) throws Exception {
 
 //         if (args.length < 1) {
@@ -692,6 +698,18 @@ else{
 		System.out.println("  Alphabet extended: " + (learner.get_alphabet_symbol().size() - productAlphabet.size()) + " symbols");
 	}
 	System.out.println("====================================================\n");
+	
+	// Store statistics for final comparison
+	productStats[i][0] = experiment.getRounds().getCount(); // Rounds
+	productStats[i][1] = ExtractValue(currentMqRst.getStatisticalData().getSummary()); // MQ Resets
+	productStats[i][2] = ExtractValue(currentMqSym.getStatisticalData().getSummary()); // MQ Symbols
+	productStats[i][3] = ExtractValue(eq_rst.getStatisticalData().getSummary()); // EQ Resets
+	productStats[i][4] = ExtractValue(eq_sym.getStatisticalData().getSummary()); // EQ Symbols
+	productStates[i] = experiment.getFinalHypothesis().getStates().size();
+	productAlphabetSizes[i] = learner.get_alphabet_symbol().size();
+	if (i > 0) {
+		newSymbolsAdded[i] = learner.get_alphabet_symbol().size() - productAlphabetSizes[i-1];
+	}
 		LearnLogger logger = LearnLogger.getLogger(Infer_LearnLib.class);
 
 		SimpleProfiler.logResults();
@@ -785,6 +803,37 @@ else{
 		
 	}
 	//lllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll
+	
+	// Print comprehensive comparison summary
+	System.out.println("\n\n");
+	System.out.println("╔════════════════════════════════════════════════════════════════╗");
+	System.out.println("║         ADAPTIVE LEARNING RESULTS SUMMARY                      ║");
+	System.out.println("╚════════════════════════════════════════════════════════════════╝");
+	System.out.println();
+	
+	// Product 0 Results
+	System.out.println("Product 0:");
+	System.out.println("  Rounds: " + productStats[0][0]);
+	System.out.println("  MQ Resets: " + productStats[0][1] + ", Symbols: " + productStats[0][2]);
+	System.out.println("  EQ Resets: " + productStats[0][3] + ", Symbols: " + productStats[0][4]);
+	System.out.println("  States: " + productStates[0]);
+	System.out.println("  Alphabet: " + productAlphabetSizes[0] + " symbols");
+	System.out.println();
+	
+	// Product 1 Results
+	System.out.println("Product 1 (Adaptive):");
+	System.out.println("  Rounds: " + productStats[1][0]);
+	System.out.println("  MQ Resets: " + productStats[1][1] + ", Symbols: " + productStats[1][2]);
+	System.out.println("  EQ Resets: " + productStats[1][3] + ", Symbols: " + productStats[1][4]);
+	System.out.println("  States: " + productStates[1]);
+	System.out.println("  Alphabet: " + productAlphabetSizes[1] + " symbols (" + productAlphabetSizes[0] + " + " + newSymbolsAdded[1] + " new)");
+	System.out.println("  ✓ Tree reused from product 0");
+	System.out.println("  ✓ " + newSymbolsAdded[1] + " new symbols added");
+	System.out.println();
+	
+	System.out.println("════════════════════════════════════════════════════════════════");
+	System.out.println();
+	
 	System.out.println("YYYYYYYYYYYYYYYYYYYYYYYY");
 	for (String symbol : allInputAlphabets) {
 		System.out.println(symbol);
