@@ -312,17 +312,13 @@ public class hi<
     			si = states.get(tr[0]);
     			sf = states.get(tr[3]);
 
-    			if(!words.containsKey(tr[1])){
-    				aux.clear();
-    				aux.add(tr[1]);
-    				words.put(tr[1], aux.toWord());
-    			}
-    			if(!words.containsKey(tr[2])){
-    				aux.clear();
-    				aux.add(tr[2]);
-    				words.put(tr[2], aux.toWord());
-    			}
-    			mealym.addTransition(si, words.get(tr[1]).toString(), sf, words.get(tr[2]));
+    		if(!words.containsKey(tr[2])){
+    			aux.clear();
+    			aux.add(tr[2]);
+    			words.put(tr[2], aux.toWord());
+    		}
+    		// CRITICAL FIX: Use tr[1] directly (already trimmed) not words.get(tr[1]).toString()
+    		mealym.addTransition(si, tr[1], sf, words.get(tr[2]));
     		}
 
     		for (Integer st : mealym.getStates()) {
@@ -358,14 +354,15 @@ public class hi<
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-            } else if (fileName.endsWith("dot")) {
-                try (InputStream is = new FileInputStream(fsm_file)) {
-                	mealy = loadMealyMachineFromDot3(fsm_file);
-                    mealy = parser.readModel(is).model;
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+        } else if (fileName.endsWith("dot")) {
+            try {
+            	// CRITICAL FIX: Use ONLY loadMealyMachineFromDot3 which trims whitespace
+            	// Don't use parser.readModel as it doesn't trim and will overwrite our clean version
+            	mealy = loadMealyMachineFromDot3(fsm_file);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
+        }
             return mealy;
         }
         
@@ -548,8 +545,14 @@ public class hi<
 
 if (i==0){	
 	// ========== PRODUCT 0: Initialize from scratch ==========
-	// Create GrowingMapAlphabet so we can add symbols later
-	product1Alphabet = new GrowingMapAlphabet<>(productAlphabet);
+	// CRITICAL FIX: Create GrowingMapAlphabet with TRIMMED symbols to avoid whitespace issues
+	List<String> trimmedSymbols = new ArrayList<>();
+	for (String symbol : productAlphabet) {
+		String cleaned = symbol.trim();
+		trimmedSymbols.add(cleaned);
+		System.out.println("  Product 0 symbol: '" + cleaned + "' (length=" + cleaned.length() + ")");
+	}
+	product1Alphabet = new GrowingMapAlphabet<>(Alphabets.fromCollection(trimmedSymbols));
 	
 	// Setup membership oracle 
 	MembershipOracle<String, Word<Word<String>>> mqOracle = new SULOracle<String, Word<String>>(mq_sul);
@@ -573,16 +576,33 @@ else{
 	// The tree from Product 0 contains discriminators with Product 0's symbols
 	// Product 1's MQ oracle must respond to BOTH Product 0 and Product 1 symbols
 	
-	// Extended alphabet = Product 0 alphabet + Product 1 new symbols
-	GrowingAlphabet<String> extendedAlphabet = (GrowingAlphabet<String>) product1Alphabet;
+	// CRITICAL FIX: Extend product1Alphabet (reuse its symbol instances) then add new symbols
+	// We MUST reuse Product 0's symbol instances so the tree's discriminators match!
+	GrowingAlphabet<String> extendedAlphabet = new GrowingMapAlphabet<>(product1Alphabet);
 	for (String symbol : productAlphabet) {
-		if (!extendedAlphabet.containsSymbol(symbol)) {
-			extendedAlphabet.addSymbol(symbol);
+		// CRITICAL: Trim whitespace to ensure clean symbol matching
+		String cleanSymbol = symbol.trim();
+		if (!extendedAlphabet.containsSymbol(cleanSymbol)) {
+			extendedAlphabet.addSymbol(cleanSymbol);
+			System.out.println("  DEBUG: Added new symbol '" + cleanSymbol + "' (length=" + cleanSymbol.length() + ")");
 		}
 	}
 	
 	// Create mealy with FULL extended alphabet for MQ oracle
+	System.out.println("\n===== DEBUG: Creating mqMealy =====");
+	System.out.println("extendedAlphabet size: " + extendedAlphabet.size());
+	System.out.println("extendedAlphabet symbols:");
+	for (String s : extendedAlphabet) {
+		System.out.println("  Symbol: '" + s + "' | Length: " + s.length() + " | Bytes: " + java.util.Arrays.toString(s.getBytes()));
+	}
+	System.out.println("==================================\n");
 	CompactMealy<String, Word<String>> mqMealy = new CompactMealy<>(extendedAlphabet);
+	System.out.println("mqMealy alphabet size: " + mqMealy.getInputAlphabet().size());
+	System.out.println("mqMealy alphabet symbols:");
+	for (String s : mqMealy.getInputAlphabet()) {
+		System.out.print("  '" + s + "'");
+	}
+	System.out.println("\n==================================\n");
 	
 	// Copy structure from original mealy (current product)
 	Map<Integer, Integer> stateMap = new HashMap<>();
@@ -597,7 +617,19 @@ else{
 			Integer succ = mealyMachine.getSuccessor(state, input);
 			Word<String> output = mealyMachine.getOutput(state, input);
 			if (succ != null) {
-				mqMealy.addTransition(stateMap.get(state), input, stateMap.get(succ), output);
+				try {
+					// CRITICAL FIX: Trim and look up the symbol in extendedAlphabet to get the canonical instance
+					// Alphabets use object identity, not string equality, for symbol lookups
+					String cleanInput = input.trim();
+					int symbolIdx = extendedAlphabet.getSymbolIndex(cleanInput);
+					String canonicalSymbol = extendedAlphabet.getSymbol(symbolIdx);
+					mqMealy.addTransition(stateMap.get(state), canonicalSymbol, stateMap.get(succ), output);
+				} catch (IllegalArgumentException e) {
+					System.out.println("ERROR: Symbol '" + input + "' (trimmed: '" + input.trim() + "') from productAlphabet not in extendedAlphabet!");
+					System.out.println("  productAlphabet size: " + ((Alphabet<?>)productAlphabet).size());
+					System.out.println("  extendedAlphabet size: " + extendedAlphabet.size());
+					throw e;
+				}
 			}
 		}
 	}
@@ -624,26 +656,21 @@ else{
 	builder.setOracle(mqOracle);
 	builder.setAlphabet(combinedAlphabet);
 	
-	// Load tree from previous product
-	learner = builder.withAlphabet(product1Alphabet).create(tree_round2);
+	// TEMPORARY: Learn from scratch to test if the issue is with tree reuse
+	learner = builder.withAlphabet(extendedAlphabet).create(null);
+	// TODO: Re-enable tree reuse once we fix the alphabet issue
+	// learner = builder.withAlphabet(extendedAlphabet).create(tree_round2);
 	
-	// Add NEW symbols from current product
-	System.out.println("  Adding new symbols:");
-	int newSymbolCount = 0;
-	for (String symbol : productAlphabet) {
-		if (!product1Alphabet.containsSymbol(symbol)) {
-			System.out.println("    + Adding: '" + symbol + "'");
-			learner.addAlphabetSymbol(symbol);
-			newSymbolCount++;
-		}
+	System.out.println("  Learner created with alphabet size: " + learner.get_alphabet_symbol().size());
+	
+	// Visualize reused tree (only if tree was actually reused)
+	if (tree_round2 != null) {
+		System.out.println("DISCRIMINATION TREE (reused from product " + (i-1) + "):");
+		// MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> treeinit = learner.getDiscriminationTree();
+		Visualization.visualize(tree_round2, true);
+	} else {
+		System.out.println("Learning from scratch (no tree reuse)");
 	}
-	System.out.println("  Total new symbols added: " + newSymbolCount);
-	System.out.println("  Updated alphabet size: " + learner.get_alphabet_symbol().size());
-	
-	// Visualize reused tree
-	System.out.println("DISCRIMINATION TREE (reused from product " + (i-1) + "):");
-	// MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> treeinit = learner.getDiscriminationTree();
-	Visualization.visualize(tree_round2, true);
 	
 	// ========== ANALYZE LOADED TREE FOR PRODUCT i ==========
 	System.out.println("\n========== LOADED TREE ANALYSIS (Product " + i + ") ==========");
