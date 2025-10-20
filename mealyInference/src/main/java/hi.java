@@ -118,9 +118,9 @@ public class hi<
 	// Add static variable to store tree between method calls
 	static MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = null;
 	// MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> tree_round2 = null;
-	// Add static ArrayList to store all input alphabets
+	// Collect all unique input symbols seen so far (for building combined alphabet)
 	private static ArrayList<String> allInputAlphabets = new ArrayList<>();
-	// Store Product 1's alphabet for adaptive learning
+	// Store Product 0's alphabet for adaptive learning (reused in Product 1+)
 	private static Alphabet<String> product1Alphabet = null;
 
 	private static int ExtractValue(String string_1) {
@@ -262,22 +262,22 @@ public class hi<
     					String trr[] = tr[1].split("<br />");
     					tr[1]=trr[0];
     					tr[2]=trr[1];
-    					trr = tr[1].split(" \\| ");
-    					for (String string : trr) {
-    						String trrr[] = new String[4];
-    						trrr[0]= tr[0];
-    						trrr[1]= string;
-    						trrr[2]= tr[2];
-    						trrr[3]= tr[3];
-    						trs.add(trrr);
-    						abcSet.add(trrr[1]);
-    					}
+   					trr = tr[1].split(" \\| ");
+   					for (String string : trr) {
+   						String trrr[] = new String[4];
+   						trrr[0]= tr[0];
+   						trrr[1]= string.trim();  // CRITICAL FIX: Remove trailing/leading whitespace
+   						trrr[2]= tr[2].trim();
+   						trrr[3]= tr[3];
+   						trs.add(trrr);
+   						abcSet.add(trrr[1]);
+   					}
     				}else{
-    					String trr[] = tr[1].split("\\s*/\\s*");
-    					tr[1]=trr[0];
-    					tr[2]=trr[1];
-    					trs.add(tr);
-    					abcSet.add(tr[1]); 
+   					String trr[] = tr[1].split("\\s*/\\s*");
+   					tr[1]=trr[0].trim();  // CRITICAL FIX: Remove trailing/leading whitespace
+   					tr[2]=trr[1].trim();
+   					trs.add(tr);
+   					abcSet.add(tr[1]);
     				}
     				
     				
@@ -460,14 +460,13 @@ public class hi<
 			,".\\alternative_experiments\\Minepump_SPL\\products_3wise"};
 		String[] a213={"00001_fsm.dot","00004_fsm.dot"};
 		
-		for(int i=0;i<2;i++){
-			
-			File productFile_2 = new File(a54[i],a213[i]);
-			System.out.println(productFile_2);
-			System.out.print("Fvvvvvv");
-			CompactMealy<String, Word<String>> mealyMachine;
-			mealyMachine = LoadMealy(productFile_2);
-			System.out.print(mealyMachine);
+	for(int i=0;i<2;i++){
+		File productFile_2 = new File(a54[i],a213[i]);
+		System.out.println(productFile_2);
+		System.out.print("Fvvvvvv");
+		CompactMealy<String, Word<String>> mealyMachine;
+		mealyMachine = LoadMealy(productFile_2);
+		System.out.print(mealyMachine);
 
 		// try {
 		// mealyMachine = loadMealyMachineFromDot3(productFile_2);
@@ -507,14 +506,27 @@ public class hi<
 	// Get the current product's input alphabet
 	Alphabet<String> productAlphabet = mealyMachine.getInputAlphabet();
 	
-	// Add all symbols from this product's alphabet to our combined collection
 	System.out.println("\nProduct " + i + " alphabet contains " + productAlphabet.size() + " symbols:");
 	for (String symbol : productAlphabet) {
 		System.out.println("  - " + symbol);
-		// Only add if it's not already in our collection (avoid duplicates)
-		if (!allInputAlphabets.contains(symbol)) {
+	}
+	
+	// CRITICAL FIX: For Product 0, use ONLY current product's symbols
+	// For Product 1+, combine with previous product's symbols for adaptive learning
+	if (i == 0) {
+		// Product 0: Start fresh with only its own symbols
+		allInputAlphabets.clear();
+		for (String symbol : productAlphabet) {
 			System.out.println("EEE"+symbol);
 			allInputAlphabets.add(symbol);
+		}
+	} else {
+		// Product 1+: Add new symbols from current product to existing collection
+		for (String symbol : productAlphabet) {
+			if (!allInputAlphabets.contains(symbol)) {
+				System.out.println("EEE"+symbol);
+				allInputAlphabets.add(symbol);
+			}
 		}
 	}
 			
@@ -557,7 +569,11 @@ else{
 	System.out.println("  Previous alphabet size: " + product1Alphabet.size());
 	System.out.println("  Current product alphabet size: " + productAlphabet.size());
 	
-	// First, extend learner alphabet with new symbols from current product
+	// FIX 5: MQ oracle must handle ALL symbols from extended alphabet
+	// The tree from Product 0 contains discriminators with Product 0's symbols
+	// Product 1's MQ oracle must respond to BOTH Product 0 and Product 1 symbols
+	
+	// Extended alphabet = Product 0 alphabet + Product 1 new symbols
 	GrowingAlphabet<String> extendedAlphabet = (GrowingAlphabet<String>) product1Alphabet;
 	for (String symbol : productAlphabet) {
 		if (!extendedAlphabet.containsSymbol(symbol)) {
@@ -565,17 +581,17 @@ else{
 		}
 	}
 	
-	// Create mealy with extended alphabet for MQ oracle
+	// Create mealy with FULL extended alphabet for MQ oracle
 	CompactMealy<String, Word<String>> mqMealy = new CompactMealy<>(extendedAlphabet);
 	
-	// Copy structure from original mealy
+	// Copy structure from original mealy (current product)
 	Map<Integer, Integer> stateMap = new HashMap<>();
 	for (Integer state : mealyMachine.getStates()) {
 		stateMap.put(state, mqMealy.addState());
 	}
 	mqMealy.setInitialState(stateMap.get(mealyMachine.getInitialState()));
 	
-	// Copy transitions for symbols that exist in product
+	// Copy transitions ONLY for symbols that exist in CURRENT product
 	for (Integer state : mealyMachine.getStates()) {
 		for (String input : productAlphabet) {
 			Integer succ = mealyMachine.getSuccessor(state, input);
@@ -586,7 +602,9 @@ else{
 		}
 	}
 	
-	// Add self-loops for symbols not in current product
+	// Add self-loops with OMEGA for ALL symbols NOT in current product
+	// This includes symbols from previous products (e.g., startCmd, stopCmd from Product 0)
+	// AND symbols that will be in future products
 	for (String symbol : extendedAlphabet) {
 		if (!productAlphabet.containsSymbol(symbol)) {
 			for (Integer state : mqMealy.getStates()) {
@@ -624,8 +642,40 @@ else{
 	
 	// Visualize reused tree
 	System.out.println("DISCRIMINATION TREE (reused from product " + (i-1) + "):");
-	MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> treeinit = learner.getDiscriminationTree();
-	Visualization.visualize(treeinit, true);
+	// MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> treeinit = learner.getDiscriminationTree();
+	Visualization.visualize(tree_round2, true);
+	
+	// ========== ANALYZE LOADED TREE FOR PRODUCT i ==========
+	System.out.println("\n========== LOADED TREE ANALYSIS (Product " + i + ") ==========");
+	System.out.println("Loaded tree_round2 from Product " + (i-1));
+	System.out.println("Current product alphabet has " + productAlphabet.size() + " symbols:");
+	for (String s : productAlphabet) {
+		System.out.print(s + " ");
+	}
+	System.out.println();
+	
+	System.out.println("\nLearner's alphabet after loading tree has " + learner.get_alphabet_symbol().size() + " symbols:");
+	for (String s : learner.get_alphabet_symbol()) {
+		System.out.print(s + " ");
+	}
+	System.out.println();
+	
+	System.out.println("\nSymbols in learner alphabet but NOT in current product:");
+	for (String s : learner.get_alphabet_symbol()) {
+		if (!productAlphabet.containsSymbol(s)) {
+			System.out.print("  '" + s + "' ");
+		}
+	}
+	System.out.println();
+	
+	System.out.println("\nSymbols in current product but NOT in learner alphabet:");
+	for (String s : productAlphabet) {
+		if (!learner.get_alphabet_symbol().containsSymbol(s)) {
+			System.out.print("  '" + s + "' ");
+		}
+	}
+	System.out.println();
+	System.out.println("========================================================\n");
 }
 
 	// Create a new Mealy machine with updated alphabet for equivalence oracle
@@ -681,9 +731,68 @@ else{
 		// new Experiment.MealyExperiment<String, Word<String>>(eqOracle);
 		
 		int[] statistics_array=new int[6];
+	// ========== ANALYZE TREE_ROUND2 STRUCTURE ==========
+	if (tree_round2 != null) {
+		System.out.println("\n========== TREE_ROUND2 ANALYSIS ==========");
+		System.out.println("Tree class: " + tree_round2.getClass().getName());
+		System.out.println("Tree root: " + tree_round2.getRoot());
 		
-		if (i==0){
-
+		// Print alphabet that was used to build this tree
+		System.out.println("\nAlphabet used for tree_round2:");
+		System.out.println("  Alphabet class: " + product1Alphabet.getClass().getName());
+		System.out.println("  Alphabet size: " + product1Alphabet.size());
+		System.out.println("  Symbols in alphabet:");
+		int idx = 0;
+		for (String symbol : product1Alphabet) {
+			System.out.println("    [" + idx + "] " + symbol);
+			idx++;
+		}
+		
+		// Try to analyze discriminators in the tree
+		System.out.println("\nTree structure analysis:");
+		try {
+			// Get the root node and analyze
+			var root = tree_round2.getRoot();
+			System.out.println("  Root node type: " + root.getClass().getName());
+			System.out.println("  Root is leaf: " + (root.isLeaf()));
+			
+			if (!root.isLeaf()) {
+				var discriminator = root.getDiscriminator();
+				System.out.println("  Root discriminator: " + discriminator);
+				System.out.println("  Root discriminator class: " + discriminator.getClass().getName());
+				
+				// Try to get children entries
+				try {
+					var childEntries = root.getChildEntries();
+					System.out.println("  Number of children: " + childEntries.size());
+					
+					// Analyze each child
+					int childIdx = 0;
+					for (var childEntry : childEntries) {
+						System.out.println("\n  Child " + childIdx + ":");
+						System.out.println("    Output key: " + childEntry.getKey());
+						System.out.println("    Child node: " + childEntry.getValue());
+						childIdx++;
+					}
+				} catch (Exception e2) {
+					System.out.println("  Could not access children: " + e2.getMessage());
+				}
+			} else {
+				System.out.println("  Root is a leaf node (contains state info)");
+				System.out.println("  State info: " + root.getData());
+			}
+		} catch (Exception e) {
+			System.out.println("  Error analyzing tree: " + e.getMessage());
+			e.printStackTrace();
+		}
+		System.out.println("==========================================\n");
+	}	
+		// FIX 4: Always run with false to avoid premature tree capture at round 4
+		// We need the COMPLETE tree from Product 0, not the incomplete round-4 tree
+		// The round-4 tree captured at round 4 only has Product 0's alphabet
+		// and doesn't have proper structure for alphabet extension in Product 1
+		
+		if(i==0){
 			experiment.run(true);
 
 		}
@@ -699,6 +808,8 @@ else{
 	System.out.println("Saved for next product:");
 	// System.out.println("  Tree depth/size: " + tree.getRoot().subtreeSize());
 	System.out.println("  Alphabet size: " + product1Alphabet.size());
+	
+
 		
 		StatisticSUL<String, Word<String>> currentMqRst = (i == 0) ? mq_rst : mq_rst_adaptive;
 		StatisticSUL<String, Word<String>> currentMqSym = (i == 0) ? mq_sym : mq_sym_adaptive;
@@ -780,7 +891,7 @@ else{
 		// traverseAndPrintTree(tree.getRoot(), "", true);
 		// ################################################################		
 		
-
+		
 		VisualizationHelper a=tree.getVisualizationHelper();
 		
 		System.out.print("ddddddddddddddd"+a);
