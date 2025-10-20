@@ -225,60 +225,59 @@ public class hi<
 
 	public static CompactMealy<String, Word<String>> loadMealyMachineFromDot3(File f) throws Exception {
 
+		Pattern kissLine = Pattern.compile("\\s*([a-zA-Z0-9]+)\\s+->\\s+([a-zA-Z0-9]+)\\s*\\[label=[\"<](.+)[\">]\\];?");
 		System.out.println("VVVVVVVVVVVVVVVVVVV");
-
-		Pattern kissLine = Pattern
-				.compile("\\s*([a-zA-Z0-9]+)\\s+->\\s+([a-zA-Z0-9]+)\\s*\\[label=[\"<](.+)[\">]\\];?");
 		BufferedReader br = new BufferedReader(new FileReader(f));
-
+		
 		List<String[]> trs = new ArrayList<String[]>();
 		System.out.println("CCCCCCCCCC");
 		HashSet<String> abcSet = new HashSet<>();
-
-		// int count = 0;
-		System.out.println("WWWWWWWW");	
-		while (br.ready()) {
+		
+		//		int count = 0;
+		System.out.println("WWWWWWWW");
+		while(br.ready()){
 			String line = br.readLine();
 			Matcher m = kissLine.matcher(line);
-			if (m.matches()) {
-				// System.out.println(m.group(0));
-				// System.out.println(m.group(1));
-				// System.out.println(m.group(2));
-				// System.out.println(m.group(3));
-				// System.out.println(m.group(4));
+			if(m.matches()){
+				//				System.out.println(m.group(0));
+				//				System.out.println(m.group(1));
+				//				System.out.println(m.group(2));
+				//				System.out.println(m.group(3));
+				//				System.out.println(m.group(4));
 
 				String[] tr = new String[4];
 				tr[0] = m.group(1);
-				tr[1] = m.group(3);
+				tr[1] = m.group(3); 
 //    				if(!abc.contains(tr[1])){
 //    					abc.add(tr[1]);
 //    				}
 //    				tr[2] = m.group(4);
 				tr[3] = m.group(2);
-				if (tr[1].contains("<br />")) {
+				if(tr[1].contains("<br />")){
 					String trr[] = tr[1].split("<br />");
-					tr[1] = trr[0];
-					tr[2] = trr[1];
+					tr[1]=trr[0];
+					tr[2]=trr[1];
 					trr = tr[1].split(" \\| ");
 					for (String string : trr) {
 						String trrr[] = new String[4];
-						trrr[0] = tr[0];
-						trrr[1] = string;
-						trrr[2] = tr[2];
-						trrr[3] = tr[3];
+						trrr[0]= tr[0];
+						trrr[1]= string;
+						trrr[2]= tr[2];
+						trrr[3]= tr[3];
 						trs.add(trrr);
 						abcSet.add(trrr[1]);
 					}
-				} else {
+				}else{
 					String trr[] = tr[1].split("\\s*/\\s*");
-					tr[1] = trr[0];
-					tr[2] = trr[1];
+					tr[1]=trr[0];
+					tr[2]=trr[1];
 					trs.add(tr);
-					abcSet.add(tr[1]);
+					abcSet.add(tr[1]); 
 				}
-
+				
+				
 			}
-			// count++;
+			//			count++;
 		}
 
 		br.close();
@@ -288,10 +287,11 @@ public class hi<
 		Alphabet<String> alphabet = Alphabets.fromCollection(abc);
 		CompactMealy<String, Word<String>> mealym = new CompactMealy<String, Word<String>>(alphabet);
 
-		Map<String, Integer> states = new HashMap<String, Integer>();
-		Integer si = null, sf = null;
+		Map<String,Integer> states = new HashMap<String,Integer>();
+		Integer si=null,sf=null;
 
-		Map<String, Word<String>> words = new HashMap<String, Word<String>>();
+		Map<String,Word<String>> words = new HashMap<String,Word<String>>();		
+
 
 		WordBuilder<String> aux = new WordBuilder<>();
 
@@ -299,22 +299,20 @@ public class hi<
 		aux.append(OMEGA_SYMBOL);
 		words.put(OMEGA_SYMBOL.toString(), aux.toWord());
 
+
 		for (String[] tr : trs) {
-			if (!states.containsKey(tr[0]))
-				states.put(tr[0], mealym.addState());
-			if (!states.containsKey(tr[3]))
-				states.put(tr[3], mealym.addState());
+			if(!states.containsKey(tr[0])) states.put(tr[0], mealym.addState());
+			if(!states.containsKey(tr[3])) states.put(tr[3], mealym.addState());
 
 			si = states.get(tr[0]);
 			sf = states.get(tr[3]);
-			
-		
-			if (!words.containsKey(tr[1])) {
+
+			if(!words.containsKey(tr[1])){
 				aux.clear();
 				aux.add(tr[1]);
 				words.put(tr[1], aux.toWord());
 			}
-			if (!words.containsKey(tr[2])) {
+			if(!words.containsKey(tr[2])){
 				aux.clear();
 				aux.add(tr[2]);
 				words.put(tr[2], aux.toWord());
@@ -324,17 +322,19 @@ public class hi<
 
 		for (Integer st : mealym.getStates()) {
 			for (String in : alphabet) {
-				// System.out.println(mealym.getTransition(st, in));
-				if (mealym.getTransition(st, in) == null) {
+				//				System.out.println(mealym.getTransition(st, in));
+				if(mealym.getTransition(st, in)==null){
 					mealym.addTransition(st, in, st, OMEGA_SYMBOL);
 				}
 			}
 		}
 
+
 		mealym.setInitialState(states.get("s0"));
 
 		return mealym;
 	}
+	
 
 	private static CompactMealy<String, Word<String>> LoadMealy(File fsm_file) throws Exception {
 		InputModelDeserializer<String, CompactMealy<String, Word<String>>> parser = DOTParsers
@@ -418,7 +418,7 @@ public class hi<
 //         }
 		String[] a54= {".\\alternative_experiments\\Minepump_SPL\\products_3wise"
 			,".\\alternative_experiments\\Minepump_SPL\\products_3wise"};
-		String[] a213={"00001_fsm.dot","00004_fsm.dot"};
+		String[] a213={"00001_fsm.dot","00002_fsm.dot"};
 		
 		for(int i=0;i<2;i++){
 			
@@ -426,7 +426,7 @@ public class hi<
 			System.out.println(productFile_2);
 			System.out.print("Fvvvvvv");
 			CompactMealy<String, Word<String>> mealyMachine;
-			mealyMachine = LoadMealy(productFile_2);
+			mealyMachine = loadMealyMachineFromDot3(productFile_2);
 			System.out.print(mealyMachine);
 
 		// try {

@@ -300,7 +300,7 @@ public class App {
     	
         File productFile_2 = new File("E:\\learning\\Projectpayan\\software\\SPL_Learning\\experiments\\Minepump_SPL\\products_3wise", "00001_fsm.dot");
         System.out.print("Fvvvvvv");
-        CompactMealy<String, Word<String>> mealyMachine;
+        CompactMealy<String, Word<String>> mealyMachine =null;
 		try {
 			mealyMachine = loadMealyMachineFromDot3(productFile_2);
 		} catch (Exception e) {
