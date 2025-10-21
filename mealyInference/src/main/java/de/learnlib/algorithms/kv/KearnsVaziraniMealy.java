@@ -322,6 +322,17 @@ public class KearnsVaziraniMealy<I, O>
         succInfo.addIncoming(state, symIdx);
         hypothesis.setTransition(state, symIdx, succInfo.id, output);
     }
+    
+    /**
+     * Helper method to repeat a string (Java 8 compatibility)
+     */
+    private String repeatString(String str, int count) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            sb.append(str);
+        }
+        return sb.toString();
+    }
 
     private List<StateInfo<I, Word<O>>> sift(List<Word<I>> prefixes) {
         return sift(Collections.nCopies(prefixes.size(), discriminationTree.getRoot()), prefixes);
@@ -330,6 +341,65 @@ public class KearnsVaziraniMealy<I, O>
     private List<StateInfo<I, Word<O>>> sift(List<AbstractWordBasedDTNode<I, Word<O>, StateInfo<I, Word<O>>>> starts,
                                              List<Word<I>> prefixes) {
 
+        // Detailed analysis of what prefixes contain
+        System.out.println("\n" + repeatString("=", 80));
+        System.out.println("PREFIX ANALYSIS - SIFT METHOD");
+        System.out.println(repeatString("=", 80));
+        System.out.println("Total number of prefixes: " + prefixes.size());
+        System.out.println();
+        
+        for (int i = 0; i < prefixes.size(); i++) {
+            Word<I> prefix = prefixes.get(i);
+            System.out.println("Prefix " + (i + 1) + ":");
+            System.out.println("  - Length: " + prefix.length());
+            System.out.println("  - Content: " + prefix);
+            System.out.println("  - Is empty: " + prefix.isEmpty());
+            System.out.println("  - String representation: '" + prefix.toString() + "'");
+            
+            // Show individual symbols
+            if (!prefix.isEmpty()) {
+                System.out.println("  - Individual symbols:");
+                for (int j = 0; j < prefix.length(); j++) {
+                    I symbol = prefix.getSymbol(j);
+                    System.out.println("    [" + j + "] = " + symbol + " (type: " + symbol.getClass().getSimpleName() + ")");
+                }
+            }
+            System.out.println();
+        }
+        
+        // Summary statistics
+        int totalSymbols = 0;
+        int emptyPrefixes = 0;
+        int maxLength = 0;
+        int minLength = Integer.MAX_VALUE;
+        
+        for (Word<I> prefix : prefixes) {
+            int len = prefix.length();
+            totalSymbols += len;
+            if (len == 0) emptyPrefixes++;
+            if (len > maxLength) maxLength = len;
+            if (len < minLength) minLength = len;
+        }
+        
+        if (prefixes.isEmpty()) {
+            minLength = 0;
+        }
+        
+        System.out.println("SUMMARY STATISTICS:");
+        System.out.println("  - Total symbols across all prefixes: " + totalSymbols);
+        System.out.println("  - Empty prefixes: " + emptyPrefixes);
+        System.out.println("  - Maximum prefix length: " + maxLength);
+        System.out.println("  - Minimum prefix length: " + minLength);
+        System.out.println("  - Average prefix length: " + (prefixes.isEmpty() ? 0 : (double) totalSymbols / prefixes.size()));
+        
+        System.out.println("\nWHAT ARE PREFIXES?");
+        System.out.println("In the Kearns-Vazirani algorithm, 'prefixes' represent:");
+        System.out.println("1. Access sequences to states in the hypothesis automaton");
+        System.out.println("2. Input words that lead to specific states");
+        System.out.println("3. The 'path' through the automaton to reach each state");
+        System.out.println("4. Used by sift() method to navigate the discrimination tree");
+        System.out.println(repeatString("=", 80) + "\n");
+        
         System.out.println("===================================================>"+prefixes);
         final List<AbstractWordBasedDTNode<I, Word<O>, StateInfo<I, Word<O>>>> leaves =
                 discriminationTree.sift(starts, prefixes);

@@ -228,116 +228,120 @@ public class hi<
 	public static final Word<String> OMEGA_SYMBOL = Word.fromLetter("Ω");
 
 
-    	public static CompactMealy<String, Word<String>> loadMealyMachineFromDot3(File f) throws Exception {
+	public static CompactMealy<String, Word<String>> loadMealyMachineFromDot3(File f) throws Exception {
 
-    		Pattern kissLine = Pattern.compile("\\s*([a-zA-Z0-9]+)\\s+->\\s+([a-zA-Z0-9]+)\\s*\\[label=[\"<](.+)[\">]\\];?");
-            System.out.println("VVVVVVVVVVVVVVVVVVV");
-    		BufferedReader br = new BufferedReader(new FileReader(f));
-    		
-    		List<String[]> trs = new ArrayList<String[]>();
-            System.out.println("CCCCCCCCCC");
-    		HashSet<String> abcSet = new HashSet<>();
-    		
-    		//		int count = 0;
-            System.out.println("WWWWWWWW");
-    		while(br.ready()){
-    			String line = br.readLine();
-    			Matcher m = kissLine.matcher(line);
-    			if(m.matches()){
-    				//				System.out.println(m.group(0));
-    				//				System.out.println(m.group(1));
-    				//				System.out.println(m.group(2));
-    				//				System.out.println(m.group(3));
-    				//				System.out.println(m.group(4));
+		Pattern kissLine = Pattern.compile("\\s*([a-zA-Z0-9]+)\\s+->\\s+([a-zA-Z0-9]+)\\s*\\[label=[\"<](.+)[\">]\\];?");
+		System.out.println("VVVVVVVVVVVVVVVVVVV");
+		BufferedReader br = new BufferedReader(new FileReader(f));
+		
+		List<String[]> trs = new ArrayList<String[]>();
+		System.out.println("CCCCCCCCCC");
+		HashSet<String> abcSet = new HashSet<>();
+		
+		//		int count = 0;
+		System.out.println("WWWWWWWW");
+		while(br.ready()){
+			String line = br.readLine();
+			Matcher m = kissLine.matcher(line);
+			if(m.matches()){
+				//				System.out.println(m.group(0));
+				//				System.out.println(m.group(1));
+				//				System.out.println(m.group(2));
+				//				System.out.println(m.group(3));
+				//				System.out.println(m.group(4));
 
-    				String[] tr = new String[4];
-    				tr[0] = m.group(1);
-    				tr[1] = m.group(3); 
+				String[] tr = new String[4];
+				tr[0] = m.group(1);
+				tr[1] = m.group(3); 
 //    				if(!abc.contains(tr[1])){
 //    					abc.add(tr[1]);
 //    				}
 //    				tr[2] = m.group(4);
-    				tr[3] = m.group(2);
-    				if(tr[1].contains("<br />")){
-    					String trr[] = tr[1].split("<br />");
-    					tr[1]=trr[0];
-    					tr[2]=trr[1];
-   					trr = tr[1].split(" \\| ");
-   					for (String string : trr) {
-   						String trrr[] = new String[4];
-   						trrr[0]= tr[0];
-   						trrr[1]= string.trim();  // CRITICAL FIX: Remove trailing/leading whitespace
-   						trrr[2]= tr[2].trim();
-   						trrr[3]= tr[3];
-   						trs.add(trrr);
-   						abcSet.add(trrr[1]);
-   					}
-    				}else{
-   					String trr[] = tr[1].split("\\s*/\\s*");
-   					tr[1]=trr[0].trim();  // CRITICAL FIX: Remove trailing/leading whitespace
-   					tr[2]=trr[1].trim();
-   					trs.add(tr);
-   					abcSet.add(tr[1]);
-    				}
-    				
-    				
-    			}
-    			//			count++;
-    		}
+				tr[3] = m.group(2);
+				if(tr[1].contains("<br />")){
+					String trr[] = tr[1].split("<br />");
+					tr[1]=trr[0];
+					tr[2]=trr[1];
+					trr = tr[1].split(" \\| ");
+					for (String string : trr) {
+						String trrr[] = new String[4];
+						trrr[0]= tr[0];
+						trrr[1]= string;
+						trrr[2]= tr[2];
+						trrr[3]= tr[3];
+						trs.add(trrr);
+						abcSet.add(trrr[1]);
+					}
+				}else{
+					String trr[] = tr[1].split("\\s*/\\s*");
+					tr[1]=trr[0];
+					tr[2]=trr[1];
+					trs.add(tr);
+					abcSet.add(tr[1]); 
+				}
+				
+				
+			}
+			//			count++;
+		}
 
-    		br.close();
+		br.close();
 
-    		List abc = new ArrayList<>(abcSet);
-    		Collections.sort(abc);
-    		Alphabet<String> alphabet = Alphabets.fromCollection(abc);
-    		CompactMealy<String, Word<String>> mealym = new CompactMealy<String, Word<String>>(alphabet);
+		List abc = new ArrayList<>(abcSet);
+		Collections.sort(abc);
+		Alphabet<String> alphabet = Alphabets.fromCollection(abc);
+		CompactMealy<String, Word<String>> mealym = new CompactMealy<String, Word<String>>(alphabet);
 
-    		Map<String,Integer> states = new HashMap<String,Integer>();
-    		Integer si=null,sf=null;
+		Map<String,Integer> states = new HashMap<String,Integer>();
+		Integer si=null,sf=null;
 
-    		Map<String,Word<String>> words = new HashMap<String,Word<String>>();		
-
-
-    		WordBuilder<String> aux = new WordBuilder<>();
-
-    		aux.clear();
-    		aux.append(OMEGA_SYMBOL);
-    		words.put(OMEGA_SYMBOL.toString(), aux.toWord());
+		Map<String,Word<String>> words = new HashMap<String,Word<String>>();		
 
 
-    		for (String[] tr : trs) {
-    			if(!states.containsKey(tr[0])) states.put(tr[0], mealym.addState());
-    			if(!states.containsKey(tr[3])) states.put(tr[3], mealym.addState());
+		WordBuilder<String> aux = new WordBuilder<>();
 
-    			si = states.get(tr[0]);
-    			sf = states.get(tr[3]);
-
-    		if(!words.containsKey(tr[2])){
-    			aux.clear();
-    			aux.add(tr[2]);
-    			words.put(tr[2], aux.toWord());
-    		}
-    		// CRITICAL FIX: Use tr[1] directly (already trimmed) not words.get(tr[1]).toString()
-    		mealym.addTransition(si, tr[1], sf, words.get(tr[2]));
-    		}
-
-    		for (Integer st : mealym.getStates()) {
-    			for (String in : alphabet) {
-    				//				System.out.println(mealym.getTransition(st, in));
-    				if(mealym.getTransition(st, in)==null){
-    					mealym.addTransition(st, in, st, OMEGA_SYMBOL);
-    				}
-    			}
-    		}
+		aux.clear();
+		aux.append(OMEGA_SYMBOL);
+		words.put(OMEGA_SYMBOL.toString(), aux.toWord());
 
 
-    		mealym.setInitialState(states.get("s0"));
+		for (String[] tr : trs) {
+			if(!states.containsKey(tr[0])) states.put(tr[0], mealym.addState());
+			if(!states.containsKey(tr[3])) states.put(tr[3], mealym.addState());
 
-    		return mealym;
-    	}
-        
-        
-        
+			si = states.get(tr[0]);
+			sf = states.get(tr[3]);
+
+			if(!words.containsKey(tr[1])){
+				aux.clear();
+				aux.add(tr[1]);
+				words.put(tr[1], aux.toWord());
+			}
+			if(!words.containsKey(tr[2])){
+				aux.clear();
+				aux.add(tr[2]);
+				words.put(tr[2], aux.toWord());
+			}
+			mealym.addTransition(si, words.get(tr[1]).toString(), sf, words.get(tr[2]));
+		}
+
+		for (Integer st : mealym.getStates()) {
+			for (String in : alphabet) {
+				//				System.out.println(mealym.getTransition(st, in));
+				if(mealym.getTransition(st, in)==null){
+					mealym.addTransition(st, in, st, OMEGA_SYMBOL);
+				}
+			}
+		}
+
+
+		mealym.setInitialState(states.get("s0"));
+
+		return mealym;
+	}
+	
+	
+	
         
         //dddddddddddddddddddddddddddddddd
     	
@@ -354,19 +358,16 @@ public class hi<
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-        } else if (fileName.endsWith("dot")) {
-            try {
-            	// CRITICAL FIX: Use ONLY loadMealyMachineFromDot3 which trims whitespace
-            	// Don't use parser.readModel as it doesn't trim and will overwrite our clean version
-            	mealy = loadMealyMachineFromDot3(fsm_file);
-            } catch (Exception e) {
-                e.printStackTrace();
+            } else if (fileName.endsWith("dot")) {
+                try (InputStream is = new FileInputStream(fsm_file)) {
+                	mealy = loadMealyMachineFromDot3(fsm_file);
+                    mealy = parser.readModel(is).model;
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
-        }
             return mealy;
         }
-        
-
 	// private static CompactMealy<String, Word<String>> LoadMealy(File fsm_file) throws Exception {
 	// 	InputModelDeserializer<String, CompactMealy<String, Word<String>>> parser = DOTParsers
 	// 			.mealy(MEALY_EDGE_WORD_STR_PARSER);
@@ -406,36 +407,36 @@ public class hi<
 	// @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2
 
 
-	private static EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> buildEqOracle(
-		Random rnd_seed, CommandLine line, CompactMealy<String, Word<String>> mealyss,
-		SUL<String, Word<String>> eq_sul) {
-	MembershipOracle<String, Word<Word<String>>> oracleForEQoracle = new SULOracle<>(eq_sul);
+    private static EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> buildEqOracle(
+            Random rnd_seed, CommandLine line, CompactMealy<String, Word<String>> mealyss,
+            SUL<String, Word<String>> eq_sul) {
+        MembershipOracle<String, Word<Word<String>>> oracleForEQoracle = new SULOracle<>(eq_sul);
 
-	EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle;
-	// if (!line.hasOption(EQ)) {
-	// 	return new WpMethodEQOracle<>(oracleForEQoracle, 2);
-	// }
+        EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle;
+        if (!line.hasOption(EQ)) {
+            return new WpMethodEQOracle<>(oracleForEQoracle, 2);
+        }
 
-	double restartProbability;
-	int maxSteps, maxTests, maxLength, minLength, maxDepth, minimalSize, rndLength, bound;
-	long rnd_long;
-	boolean resetStepCount;
+        double restartProbability;
+        int maxSteps, maxTests, maxLength, minLength, maxDepth, minimalSize, rndLength, bound;
+        long rnd_long;
+        boolean resetStepCount;
 
-	LearnLibProperties learn_props = LearnLibProperties.getInstance();
+        LearnLibProperties learn_props = LearnLibProperties.getInstance();
 
-	restartProbability = learn_props.getRndWalk_restartProbability();
-	maxSteps = learn_props.getRndWalk_maxSteps();
-	resetStepCount = learn_props.getRndWalk_resetStepsCount();
+        restartProbability = learn_props.getRndWalk_restartProbability();
+        maxSteps = learn_props.getRndWalk_maxSteps();
+        resetStepCount = learn_props.getRndWalk_resetStepsCount();
 
-	eqOracle = new RandomWalkEQOracle<String, Word<String>>(eq_sul, // sul
-			restartProbability, // reset SUL w/ this probability before a step
-			maxSteps, // max steps (overall)
-			resetStepCount, // reset step count after counterexample
-			rnd_seed // make results reproducible
-	);
+        eqOracle = new RandomWalkEQOracle<String, Word<String>>(eq_sul, // sul
+                restartProbability, // reset SUL w/ this probability before a step
+                maxSteps, // max steps (overall)
+                resetStepCount, // reset step count after counterexample
+                rnd_seed // make results reproducible
+        );
 
-	return eqOracle;
-}
+        return eqOracle;
+    }
 
 	
 	public static void learnalgo(File productFile_2, String[] args,int product) throws Exception {
@@ -546,13 +547,13 @@ public class hi<
 if (i==0){	
 	// ========== PRODUCT 0: Initialize from scratch ==========
 	// CRITICAL FIX: Create GrowingMapAlphabet with TRIMMED symbols to avoid whitespace issues
-	List<String> trimmedSymbols = new ArrayList<>();
-	for (String symbol : productAlphabet) {
-		String cleaned = symbol.trim();
-		trimmedSymbols.add(cleaned);
-		System.out.println("  Product 0 symbol: '" + cleaned + "' (length=" + cleaned.length() + ")");
-	}
-	product1Alphabet = new GrowingMapAlphabet<>(Alphabets.fromCollection(trimmedSymbols));
+	// List<String> trimmedSymbols = new ArrayList<>();
+	// for (String symbol : productAlphabet) {
+	// 	String cleaned = symbol.trim();
+	// 	trimmedSymbols.add(cleaned);
+	// 	System.out.println("  Product 0 symbol: '" + cleaned + "' (length=" + cleaned.length() + ")");
+	// }
+	product1Alphabet = new GrowingMapAlphabet<>(Alphabets.fromCollection(allInputAlphabets));
 	
 	// Setup membership oracle 
 	MembershipOracle<String, Word<Word<String>>> mqOracle = new SULOracle<String, Word<String>>(mq_sul);
@@ -581,10 +582,10 @@ else{
 	GrowingAlphabet<String> extendedAlphabet = new GrowingMapAlphabet<>(product1Alphabet);
 	for (String symbol : productAlphabet) {
 		// CRITICAL: Trim whitespace to ensure clean symbol matching
-		String cleanSymbol = symbol.trim();
-		if (!extendedAlphabet.containsSymbol(cleanSymbol)) {
-			extendedAlphabet.addSymbol(cleanSymbol);
-			System.out.println("  DEBUG: Added new symbol '" + cleanSymbol + "' (length=" + cleanSymbol.length() + ")");
+		// String cleanSymbol = symbol.trim();
+		if (!extendedAlphabet.containsSymbol(symbol)) {
+			extendedAlphabet.addSymbol(symbol);
+			System.out.println("  DEBUG: Added new symbol '" + symbol + "' (length=" + symbol.length() + ")");
 		}
 	}
 	
@@ -620,7 +621,9 @@ else{
 				try {
 					// CRITICAL FIX: Trim and look up the symbol in extendedAlphabet to get the canonical instance
 					// Alphabets use object identity, not string equality, for symbol lookups
-					String cleanInput = input.trim();
+					// String cleanInput = input.trim();
+//****************************************************************************** */
+					String cleanInput = input;
 					int symbolIdx = extendedAlphabet.getSymbolIndex(cleanInput);
 					String canonicalSymbol = extendedAlphabet.getSymbol(symbolIdx);
 					mqMealy.addTransition(stateMap.get(state), canonicalSymbol, stateMap.get(succ), output);
@@ -657,9 +660,9 @@ else{
 	builder.setAlphabet(combinedAlphabet);
 	
 	// TEMPORARY: Learn from scratch to test if the issue is with tree reuse
-	learner = builder.withAlphabet(extendedAlphabet).create(null);
+	// learner = builder.withAlphabet(extendedAlphabet).create(null);
 	// TODO: Re-enable tree reuse once we fix the alphabet issue
-	// learner = builder.withAlphabet(extendedAlphabet).create(tree_round2);
+	learner = builder.withAlphabet(extendedAlphabet).create(tree_round2);
 	
 	System.out.println("  Learner created with alphabet size: " + learner.get_alphabet_symbol().size());
 	
