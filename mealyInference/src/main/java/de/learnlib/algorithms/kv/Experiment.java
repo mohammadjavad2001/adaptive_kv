@@ -175,6 +175,7 @@ public class Experiment<A extends Object> {
                 LOGGER.logPhase("Searching for counterexample");
                 System.out.println("Searching for counterexample");
                 profileStart(COUNTEREXAMPLE_PROFILE_KEY);
+                System.out.println("herreeee inputssss"+inputs);
                 DefaultQuery<I, D> ce = equivalenceAlgorithm.findCounterExample(hyp, inputs);
                 profileStop(COUNTEREXAMPLE_PROFILE_KEY);
 
@@ -189,7 +190,7 @@ public class Experiment<A extends Object> {
                 rounds.increment();
                 LOGGER.logPhase("Starting round " + rounds.getCount());
                 System.out.println("Starting round " + rounds.getCount());
-                if(rounds.getCount()==4 && first){
+                if(rounds.getCount()==2 && first){
                     MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = kvLearner.getDiscriminationTree();
                     setDiscrtree(tree_round2);
                     System.out.println("PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP");

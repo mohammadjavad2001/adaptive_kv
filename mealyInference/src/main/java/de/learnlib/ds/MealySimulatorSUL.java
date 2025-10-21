@@ -133,12 +133,24 @@ public class MealySimulatorSUL<I, O> implements SUL<I, O> {
         public O step(I in) {
             O out = noTransOut;
             if (curr != null) {
-                T trans = mealy.getTransition(curr, in);
-                if (trans != null) {
-                    out = mealy.getTransitionOutput(trans);
-                    curr = mealy.getSuccessor(trans);
-                } else {
-                    curr = null;
+                try {
+                    T trans = mealy.getTransition(curr, in);
+                    if (trans != null) {
+                        out = mealy.getTransitionOutput(trans);
+                        curr = mealy.getSuccessor(trans);
+                    } else {
+                        curr = null;
+                    }
+                } catch (IllegalArgumentException e) {
+                    System.out.println("\n========== SYMBOL MISMATCH ERROR DETECTED ==========");
+                    System.out.println("Querying symbol: '" + in + "'");
+                    System.out.println("Symbol identity hash: " + System.identityHashCode(in));
+                    System.out.println("Symbol class: " + in.getClass().getName());
+                    System.out.println("Current state: " + curr);
+                    System.out.println("\nMealy alphabet symbols:");
+
+                    System.out.println("====================================================\n");
+                    throw e;
                 }
             }
             return out;

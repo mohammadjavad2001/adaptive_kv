@@ -456,7 +456,7 @@ public class hi<
 //         }
 		String[] a54= {".\\alternative_experiments\\Minepump_SPL\\products_3wise"
 			,".\\alternative_experiments\\Minepump_SPL\\products_3wise"};
-		String[] a213={"00001_fsm.dot","00004_fsm.dot"};
+		String[] a213={"00001_fsm.dot","00002_fsm.dot"};
 		
 	for(int i=0;i<2;i++){
 		File productFile_2 = new File(a54[i],a213[i]);
@@ -592,18 +592,19 @@ else{
 	// Create mealy with FULL extended alphabet for MQ oracle
 	System.out.println("\n===== DEBUG: Creating mqMealy =====");
 	System.out.println("extendedAlphabet size: " + extendedAlphabet.size());
-	System.out.println("extendedAlphabet symbols:");
+	System.out.println("extendedAlphabet symbols (with identity hash):");
 	for (String s : extendedAlphabet) {
-		System.out.println("  Symbol: '" + s + "' | Length: " + s.length() + " | Bytes: " + java.util.Arrays.toString(s.getBytes()));
+		System.out.println("  Symbol: '" + s + "' | Length: " + s.length() + " | Hash: " + System.identityHashCode(s) + " | Bytes: " + java.util.Arrays.toString(s.getBytes()));
 	}
 	System.out.println("==================================\n");
 	CompactMealy<String, Word<String>> mqMealy = new CompactMealy<>(extendedAlphabet);
 	System.out.println("mqMealy alphabet size: " + mqMealy.getInputAlphabet().size());
-	System.out.println("mqMealy alphabet symbols:");
+	System.out.println("mqMealy alphabet == extendedAlphabet: " + (mqMealy.getInputAlphabet() == extendedAlphabet));
+	System.out.println("mqMealy alphabet symbols (with identity hash):");
 	for (String s : mqMealy.getInputAlphabet()) {
-		System.out.print("  '" + s + "'");
+		System.out.println("  Symbol: '" + s + "' | Hash: " + System.identityHashCode(s));
 	}
-	System.out.println("\n==================================\n");
+	System.out.println("==================================\n");
 	
 	// Copy structure from original mealy (current product)
 	Map<Integer, Integer> stateMap = new HashMap<>();
@@ -613,6 +614,8 @@ else{
 	mqMealy.setInitialState(stateMap.get(mealyMachine.getInitialState()));
 	
 	// Copy transitions ONLY for symbols that exist in CURRENT product
+	System.out.println("\n===== DEBUG: Adding transitions from productAlphabet =====");
+	int transitionCount = 0;
 	for (Integer state : mealyMachine.getStates()) {
 		for (String input : productAlphabet) {
 			Integer succ = mealyMachine.getSuccessor(state, input);
@@ -623,30 +626,50 @@ else{
 					// Alphabets use object identity, not string equality, for symbol lookups
 					// String cleanInput = input.trim();
 //****************************************************************************** */
-					String cleanInput = input;
+					
+System.out.println("  - Heyyyyyyyyyyyyyyyy: '" + input + "'");
+
+String cleanInput = input;
 					int symbolIdx = extendedAlphabet.getSymbolIndex(cleanInput);
 					String canonicalSymbol = extendedAlphabet.getSymbol(symbolIdx);
 					mqMealy.addTransition(stateMap.get(state), canonicalSymbol, stateMap.get(succ), output);
+					transitionCount++;
+					if (input.contains("lowLevel")) {
+						System.out.println("  Added transition for 'lowLevel': state=" + state + ", input='" + input + "', canonical='" + canonicalSymbol + "', inputHash=" + System.identityHashCode(input) + ", canonicalHash=" + System.identityHashCode(canonicalSymbol));
+					}
 				} catch (IllegalArgumentException e) {
 					System.out.println("ERROR: Symbol '" + input + "' (trimmed: '" + input.trim() + "') from productAlphabet not in extendedAlphabet!");
+					System.out.println("  input identity hash: " + System.identityHashCode(input));
 					System.out.println("  productAlphabet size: " + ((Alphabet<?>)productAlphabet).size());
 					System.out.println("  extendedAlphabet size: " + extendedAlphabet.size());
+					System.out.println("  extendedAlphabet symbols:");
+					for (String s : extendedAlphabet) {
+						System.out.println("    '" + s + "' (hash=" + System.identityHashCode(s) + ")");
+					}
 					throw e;
 				}
 			}
 		}
 	}
+	System.out.println("Total transitions added from productAlphabet: " + transitionCount);
+	System.out.println("==================================\n");
 	
 	// Add self-loops with OMEGA for ALL symbols NOT in current product
 	// This includes symbols from previous products (e.g., startCmd, stopCmd from Product 0)
 	// AND symbols that will be in future products
+	System.out.println("\n===== DEBUG: Adding OMEGA self-loops for symbols not in productAlphabet =====");
+	int omegaSymbolCount = 0;
 	for (String symbol : extendedAlphabet) {
 		if (!productAlphabet.containsSymbol(symbol)) {
+			System.out.println("  Adding OMEGA self-loops for symbol: '" + symbol + "' (hash=" + System.identityHashCode(symbol) + ")");
 			for (Integer state : mqMealy.getStates()) {
 				mqMealy.addTransition(state, symbol, state, Utils.OMEGA_SYMBOL);
 			}
+			omegaSymbolCount++;
 		}
 	}
+	System.out.println("Total symbols with OMEGA self-loops: " + omegaSymbolCount);
+	System.out.println("==================================\n");
 	
 	// Create MQ SUL and oracle with extended mealy
 	SUL<String, Word<String>> mqSulSim = new MealySimulatorSUL<>(mqMealy, Utils.OMEGA_SYMBOL);
