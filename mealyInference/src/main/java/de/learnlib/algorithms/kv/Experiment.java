@@ -44,6 +44,7 @@ import net.automatalib.words.Alphabet;
 import net.automatalib.words.Word;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import de.learnlib.algorithms.kv.KearnsVaziraniMealy;
+import de.learnlib.algorithms.kv.TreeCopyUtil;
 
 /**
  * runs a learning experiment.
@@ -197,17 +198,14 @@ public class Experiment<A extends Object> {
                 LOGGER.logPhase("Starting round " + rounds.getCount());
                 System.out.println("Starting round " + rounds.getCount());
                 if(rounds.getCount()==2 && first){
-                    MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = kvLearner.getDiscriminationTree();
+                    // Create a DEEP COPY of the tree at round 2
+                    MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = 
+                        TreeCopyUtil.deepCopyTree(kvLearner.getDiscriminationTree());
+                    
                     setDiscrtree(tree_round2);
-                    System.out.println("PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP");
-                    // return hyp;
-
-                    // tree_round2.getEdgesBetween(null, null);
-                    // MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> temp_tree= new MultiDTree<>(null);
-                    // kvLearner.getDiscriminationTree();
-                    // System.out.println("UUUUUUUUUUUUUUUUUUU");
-                    // Visualization.visualize((tree_round2), true);
-                    // System.out.println("MJEJEJEJEJEEJEJ");
+                    System.out.println("========== DEEP COPY OF TREE SAVED AT ROUND 2 ==========");
+                    System.out.println("This snapshot will remain unchanged as learning continues");
+                    System.out.println("========================================================");
                 }
                 LOGGER.logPhase("Learning");
 
