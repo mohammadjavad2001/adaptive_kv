@@ -178,9 +178,13 @@ public class Experiment<A extends Object> {
                 System.out.println("herreeee inputssss"+inputs);
                 DefaultQuery<I, D> ce = equivalenceAlgorithm.findCounterExample(hyp, inputs);
                 profileStop(COUNTEREXAMPLE_PROFILE_KEY);
-
+                if(getDiscrtree()!=null){
+                System.out.println("THIS IS TREEE SAVEDDDDDDDDDDDDDDDDDD");
+                Visualization.visualize(getDiscrtree(), true);
+                }
                 if (ce == null) {
                     System.out.println("=============================Learned model is equivalent to the original model=========================");
+                    
                     return hyp;
                 }
 
@@ -188,6 +192,8 @@ public class Experiment<A extends Object> {
 
                 // next round ...
                 rounds.increment();
+                System.out.println("ROUNDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD");
+                System.out.println(rounds.getCount());
                 LOGGER.logPhase("Starting round " + rounds.getCount());
                 System.out.println("Starting round " + rounds.getCount());
                 if(rounds.getCount()==2 && first){
