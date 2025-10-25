@@ -28,9 +28,7 @@ import java.util.stream.Collectors;
 
 import de.learnlib.acex.AcexAnalyzer;
 import de.learnlib.algorithms.kv.StateInfo;
-import de.learnlib.algorithms.kv.dfa.KearnsVaziraniDFA;
-import de.learnlib.algorithms.kv.dfa.KearnsVaziraniDFAState;
-
+import de.learnlib.incremental.KearnsVaziraniDFA;
 import de.learnlib.api.oracle.MembershipOracle;
 
 
@@ -40,6 +38,7 @@ import de.learnlib.api.query.DefaultQuery;
 import de.learnlib.datastructure.discriminationtree.iterators.DiscriminationTreeIterators;
 import de.learnlib.datastructure.discriminationtree.model.AbstractWordBasedDTNode;
 import de.learnlib.datastructure.discriminationtree.model.LCAInfo;
+import de.learnlib.incremental.KearnsVaziraniDFAState;
 // import net.automatalib.alphabets.Alphabet;
 import net.automatalib.words.Alphabet;
 import net.automatalib.automata.fsa.impl.compact.CompactDFA;
@@ -99,7 +98,7 @@ public class IKearnsVaziraniDFA<I> extends KearnsVaziraniDFA<I> {
         minimiseTree();
         DiscriminationTreeIterators.leafIterator(discriminationTree.getRoot()).forEachRemaining(l -> {
             assert l.getData().dtNode.equals(l);
-            assert stateInfos.containsValue(l.getData());
+            assert stateInfos.contains(l.getData());
         });
     }
 
@@ -131,7 +130,8 @@ public class IKearnsVaziraniDFA<I> extends KearnsVaziraniDFA<I> {
         if (inputLen < 2) {
             StateInfo<I, Boolean> startState = sift(Collections.singletonList(Word.epsilon()), hypothesis).get(0);
             StateInfo<I, Boolean> newDest = sift(Collections.singletonList(input), hypothesis).get(0);
-            newDest.addIncoming(sift(Collections.singletonList(Word.epsilon()), hypothesis).get(0), input.getSymbol(0));
+            StateInfo<I, Boolean> startStateInfo = sift(Collections.singletonList(Word.epsilon()), hypothesis).get(0);
+            newDest.addIncoming(startStateInfo.id, alphabet.getSymbolIndex(input.getSymbol(0)));
             stateInfos.get(hypothesis.getTransition(startState.id, input.getSymbol(0))).removeIncoming(startState,
                     input.getSymbol(0));
 
