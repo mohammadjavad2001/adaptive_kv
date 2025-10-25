@@ -9,6 +9,7 @@ import de.learnlib.algorithms.kv.StateInfo;
 
 import de.learnlib.datastructure.discriminationtree.model.AbstractWordBasedDTNode;
 // import de.learnlib.ds.AbstractWordBasedDTNode;
+import de.learnlib.api.oracle.MembershipOracle;
 import net.automatalib.words.Word;
 import java.util.HashMap;
 import java.util.Map;
@@ -37,17 +38,26 @@ public class TreeCopyUtil {
         Map<StateInfo<String, Word<Word<String>>>, StateInfo<String, Word<Word<String>>>> stateInfoMap = 
             new HashMap<>();
 
+        // Get oracle from original tree (needed for tree operations)
+        de.learnlib.api.oracle.MembershipOracle<String, Word<Word<String>>> oracle = getOracleFromTree(originalTree);
+        
+        System.out.println("Deep copy: Oracle extracted = " + (oracle != null ? "SUCCESS" : "NULL"));
+
         // Recursively copy the root node and all its descendants
         MultiDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> copiedRoot = 
             copyNode(originalRoot, stateInfoMap);
+            
+        System.out.println("Deep copy: Root node copied, is leaf = " + copiedRoot.isLeaf());
 
-        // Create new tree with copied root and null oracle (we're just storing it)
+        // Create new tree with copied root and original oracle
         MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> copiedTree = 
-            new MultiDTree<>(copiedRoot.getData(), null);
+            new MultiDTree<>(copiedRoot.getData(), oracle);
 
         // Set the root to our copied structure
         // Note: We need to replace the root that was created in constructor
         setTreeRoot(copiedTree, copiedRoot);
+        
+        System.out.println("Deep copy: Tree created and root set successfully");
 
         return copiedTree;
     }
@@ -122,17 +132,44 @@ public class TreeCopyUtil {
         StateInfo<String, Word<Word<String>>> copied = 
             new StateInfo<>(original.id, original.accessSequence);
 
-        // Copy incoming transitions list
-        if (original.fetchIncoming() != null && !original.fetchIncoming().isEmpty()) {
-            for (Long incoming : original.fetchIncoming()) {
-                int sourceState = (int) (incoming >> Integer.SIZE);
-                int transIdx = incoming.intValue();
-                copied.addIncoming(sourceState, transIdx);
+        // Copy incoming transitions list using reflection (fetchIncoming is destructive)
+        try {
+            java.lang.reflect.Field incomingField = StateInfo.class.getDeclaredField("incoming");
+            incomingField.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            java.util.List<Long> originalIncoming = (java.util.List<Long>) incomingField.get(original);
+            
+            if (originalIncoming != null && !originalIncoming.isEmpty()) {
+                for (Long incoming : originalIncoming) {
+                    int sourceState = (int) (incoming >> Integer.SIZE);
+                    int transIdx = incoming.intValue();
+                    copied.addIncoming(sourceState, transIdx);
+                }
             }
+        } catch (Exception e) {
+            System.out.println("Warning: Could not copy incoming transitions: " + e.getMessage());
         }
 
         stateInfoMap.put(original, copied);
         return copied;
+    }
+
+    /**
+     * Uses reflection to get the oracle from a tree
+     */
+    private static MembershipOracle<String, Word<Word<String>>> getOracleFromTree(
+            MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree) {
+        try {
+            java.lang.reflect.Field oracleField = tree.getClass().getSuperclass().getSuperclass().getDeclaredField("oracle");
+            oracleField.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            MembershipOracle<String, Word<Word<String>>> oracle = 
+                (MembershipOracle<String, Word<Word<String>>>) oracleField.get(tree);
+            return oracle;
+        } catch (Exception e) {
+            System.out.println("Warning: Could not get oracle from tree: " + e.getMessage());
+            return null;
+        }
     }
 
     /**

@@ -188,7 +188,7 @@ public class Experiment<A extends Object> {
                     
                     return hyp;
                 }
-
+                
                 LOGGER.logCounterexample(ce.getInput().toString());
 
                 // next round ...
@@ -199,9 +199,14 @@ public class Experiment<A extends Object> {
                 System.out.println("Starting round " + rounds.getCount());
                 if(rounds.getCount()==2 && first){
                     // Create a DEEP COPY of the tree at round 2
-                    MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = 
-                        TreeCopyUtil.deepCopyTree(kvLearner.getDiscriminationTree());
-                    
+                    MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = kvLearner.getDiscriminationTree();
+                    setDiscrtree(tree_round2);
+                    System.out.println("PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP");
+                    // return hyp;
+
+                    // MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = 
+                    // TreeCopyUtil.deepCopyTree(kvLearner.getDiscriminationTree());
+                
                     setDiscrtree(tree_round2);
                     System.out.println("========== DEEP COPY OF TREE SAVED AT ROUND 2 ==========");
                     System.out.println("This snapshot will remain unchanged as learning continues");
