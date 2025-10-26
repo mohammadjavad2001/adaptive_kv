@@ -694,7 +694,8 @@ String cleanInput = input;
 		System.out.println("DISCRIMINATION TREE (reused from product " + (i-1) + "):");
 		// MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> treeinit = learner.getDiscriminationTree();
 		Visualization.visualize(tree_round2, true);
-	} else {
+	} 
+	else {
 		System.out.println("Learning from scratch (no tree reuse)");
 	}
 	
