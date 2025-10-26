@@ -643,7 +643,7 @@ else{
 	// Visualize reused tree
 	System.out.println("DISCRIMINATION TREE (reused from product " + (i-1) + "):");
 	// MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> treeinit = learner.getDiscriminationTree();
-	Visualization.visualize(tree_round2, true);
+	// Visualization.visualize(tree_round2, true);
 	
 	// ========== ANALYZE LOADED TREE FOR PRODUCT i ==========
 	System.out.println("\n========== LOADED TREE ANALYSIS (Product " + i + ") ==========");
