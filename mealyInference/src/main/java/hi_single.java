@@ -90,6 +90,8 @@ import net.automatalib.commons.util.settings.AbstractClassPathFileSource;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.Set;
+import java.util.HashSet;
 import net.automatalib.words.WordBuilder;
 import net.automatalib.words.impl.Alphabets;
 import net.automatalib.words.GrowingAlphabet;
@@ -104,7 +106,7 @@ import net.automatalib.visualization.VisualizationHelper.EdgeAttrs;
 import de.learnlib.datastructure.discriminationtree.MultiDTree;
 
 
-import de.learnlib.ds.AbstractWordBasedDTNode;
+import de.learnlib.datastructure.discriminationtree.model.AbstractWordBasedDTNode;
 import de.learnlib.algorithms.kv.StateInfo;
 import net.automatalib.graphs.concepts.GraphViewable;
 import de.learnlib.ds.JointCounterOracle;
@@ -122,6 +124,8 @@ public class hi_single<
 	private static ArrayList<String> allInputAlphabets = new ArrayList<>();
 	// Store Product 0's alphabet for adaptive learning (reused in Product 1+)
 	private static Alphabet<String> product1Alphabet = null;
+	// Store previous product's hypothesis
+	private static CompactMealy<String, Word<String>> previousHypothesis = null;
 
 	private static int ExtractValue(String string_1) {
 		// TODO Auto-generated method stub
@@ -134,7 +138,7 @@ public class hi_single<
 		value_1 = Integer.parseInt(string_2);
 		return value_1;
 	}
-// Method to traverse and print the tree
+	// Method to traverse and print the tree
 	private static <I, O, D> void traverseAndPrintTree(
         AbstractWordBasedDTNode<I, O, D> node, 
         String indent, 
@@ -180,6 +184,290 @@ public class hi_single<
         }
     }
 }
+
+	// ============================================================================
+	// COMPREHENSIVE TREE ANALYSIS METHOD - Analyzes StateInfo and Tree Structure
+	// ============================================================================
+	private static void analyzeTreeStructureDetailed(
+			MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree,
+			int productNumber,
+			Alphabet<String> productAlphabet) {
+		
+		System.out.println("\n╔════════════════════════════════════════════════════════════════╗");
+		System.out.println("║  DETAILED TREE ANALYSIS - PRODUCT " + productNumber + "                             ║");
+		System.out.println("╚════════════════════════════════════════════════════════════════╝\n");
+		
+		if (tree == null) {
+			System.out.println("⚠ Tree is null - no analysis possible");
+			return;
+		}
+		
+		// Get root node
+		AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> root = tree.getRoot();
+		
+		// Collect all StateInfo objects and discriminators
+		List<StateInfo<String, Word<Word<String>>>> allStates = new ArrayList<>();
+		List<Word<String>> allDiscriminators = new ArrayList<>();
+		int treeDepth = collectTreeInfo(root, allStates, allDiscriminators, 0);
+		
+		// Print tree statistics
+		System.out.println("TREE STATISTICS:");
+		System.out.println("  Total states (leaf nodes): " + allStates.size());
+		System.out.println("  Total discriminators (internal nodes): " + allDiscriminators.size());
+		System.out.println("  Maximum tree depth: " + treeDepth);
+		System.out.println("  Product alphabet size: " + productAlphabet.size());
+		System.out.println();
+		
+		// Print all discriminators
+		System.out.println("DISCRIMINATORS IN TREE:");
+		for (int i = 0; i < allDiscriminators.size(); i++) {
+			Word<String> disc = allDiscriminators.get(i);
+			System.out.println("  [" + i + "] " + disc + " (length: " + disc.length() + ")");
+		}
+		System.out.println();
+		
+		// Print all StateInfo objects
+		System.out.println("STATE INFO OBJECTS:");
+		for (StateInfo<String, Word<Word<String>>> stateInfo : allStates) {
+			System.out.println("  State " + stateInfo.id + ":");
+			System.out.println("    Access Sequence: " + stateInfo.accessSequence);
+			System.out.println("    Access Seq Length: " + stateInfo.accessSequence.length());
+			
+			// Check if access sequence uses symbols from current product
+			boolean usesCurrentSymbols = false;
+			for (String symbol : productAlphabet) {
+				if (stateInfo.accessSequence.toString().contains(symbol)) {
+					usesCurrentSymbols = true;
+					break;
+				}
+			}
+			System.out.println("    Uses current product symbols: " + usesCurrentSymbols);
+		}
+		System.out.println();
+		
+	System.out.println("═══════════════════════════════════════════════════════════════\n");
+}
+
+// Helper method to update StateInfo IDs in tree to match new hypothesis state mapping
+private static void updateStateInfoInTree(
+		AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> node,
+		Map<Integer, Integer> stateMap) {
+	if (node == null) {
+		return;
+	}
+	
+    if (node.isLeaf()) {
+        // Cannot mutate final field 'id' in StateInfo; rely on 'stateMap' externally instead
+        // Intentionally no-op here to avoid assigning to a final field
+    } else {
+		// Recursively update StateInfo in all child nodes
+		Collection<Map.Entry<Word<Word<String>>, AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>>> children = node.getChildEntries();
+		for (Map.Entry<Word<Word<String>>, AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>> entry : children) {
+			updateStateInfoInTree(entry.getValue(), stateMap);
+		}
+	}
+}
+
+// Helper method to canonicalize all discriminators in tree to use new alphabet's symbol instances
+// This is CRITICAL when reusing a tree from product1 for product2, because:
+// - Discriminators contain Word<String> where each String symbol is an object from product1's alphabet
+// - Java uses object identity (==) not equality (.equals()) for alphabet lookups
+// - Product2's alphabet has different String instances even if the values are the same
+// - Without canonicalization, oracle queries will fail with IllegalArgumentException
+private static void canonicalizeTreeDiscriminators(
+		AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> node,
+		Alphabet<String> newAlphabet) {
+	if (node == null) {
+		return;
+	}
+	
+	// Canonicalize StateInfo access sequence if this is a leaf node
+	if (node.isLeaf()) {
+		StateInfo<String, Word<Word<String>>> stateInfo = node.getData();
+		if (stateInfo != null && stateInfo.accessSequence != null && stateInfo.accessSequence.length() > 0) {
+			Word<String> oldAccessSeq = stateInfo.accessSequence;
+			System.out.println("  Canonicalizing StateInfo access sequence for state " + stateInfo.id + ": " + oldAccessSeq);
+			
+			// Build new access sequence with canonical symbols
+			String[] canonicalSymbols = new String[oldAccessSeq.length()];
+			for (int i = 0; i < oldAccessSeq.length(); i++) {
+				String oldSymbol = oldAccessSeq.getSymbol(i);
+				if (newAlphabet.containsSymbol(oldSymbol)) {
+					int symbolIdx = newAlphabet.getSymbolIndex(oldSymbol);
+					canonicalSymbols[i] = newAlphabet.getSymbol(symbolIdx);
+				} else {
+					System.err.println("    WARNING: Symbol '" + oldSymbol + "' from StateInfo not in new alphabet!");
+					canonicalSymbols[i] = oldSymbol;
+				}
+			}
+			
+			Word<String> newAccessSeq = Word.fromList(java.util.Arrays.asList(canonicalSymbols));
+			
+			// Replace access sequence using reflection
+			try {
+				java.lang.reflect.Field accessSeqField = StateInfo.class.getDeclaredField("accessSequence");
+				accessSeqField.setAccessible(true);
+				accessSeqField.set(stateInfo, newAccessSeq);
+				System.out.println("    ✓ StateInfo access sequence canonicalized");
+			} catch (Exception e) {
+				System.err.println("    ERROR: Could not update StateInfo access sequence: " + e.getMessage());
+				e.printStackTrace();
+			}
+		}
+		return;
+	}
+	
+	// Canonicalize the discriminator at this internal node
+	Word<String> oldDiscriminator = node.getDiscriminator();
+	if (oldDiscriminator != null && oldDiscriminator.length() > 0) {
+		System.out.println("  Canonicalizing discriminator: " + oldDiscriminator);
+		System.out.println("    Old symbols (identity hashes):");
+		
+		// Build new discriminator with canonical symbols from newAlphabet
+		String[] canonicalSymbols = new String[oldDiscriminator.length()];
+		for (int i = 0; i < oldDiscriminator.length(); i++) {
+			String oldSymbol = oldDiscriminator.getSymbol(i);
+			System.out.println("      [" + i + "] '" + oldSymbol + "' (hash=" + System.identityHashCode(oldSymbol) + ")");
+			
+			// Look up the canonical symbol in the new alphabet
+			if (newAlphabet.containsSymbol(oldSymbol)) {
+				int symbolIdx = newAlphabet.getSymbolIndex(oldSymbol);
+				canonicalSymbols[i] = newAlphabet.getSymbol(symbolIdx);
+			} else {
+				// Symbol not in new alphabet - this shouldn't happen if alphabet extension was done correctly
+				System.err.println("      WARNING: Symbol '" + oldSymbol + "' from tree not in new alphabet!");
+				canonicalSymbols[i] = oldSymbol; // Keep old symbol as fallback
+			}
+		}
+		
+		// Create new Word with canonical symbols
+		Word<String> newDiscriminator = Word.fromList(java.util.Arrays.asList(canonicalSymbols));
+		System.out.println("    New symbols (identity hashes):");
+		for (int i = 0; i < newDiscriminator.length(); i++) {
+			String newSymbol = newDiscriminator.getSymbol(i);
+			System.out.println("      [" + i + "] '" + newSymbol + "' (hash=" + System.identityHashCode(newSymbol) + ")");
+		}
+		
+		// Replace discriminator in node using reflection (since it's typically final)
+		try {
+			java.lang.reflect.Field discriminatorField = node.getClass().getDeclaredField("discriminator");
+			discriminatorField.setAccessible(true);
+			discriminatorField.set(node, newDiscriminator);
+			System.out.println("    ✓ Discriminator canonicalized successfully");
+		} catch (Exception e) {
+			System.err.println("    ERROR: Could not update discriminator using reflection: " + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+	
+	// Recursively canonicalize discriminators and StateInfo in all child nodes
+	Collection<Map.Entry<Word<Word<String>>, AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>>> children = node.getChildEntries();
+	for (Map.Entry<Word<Word<String>>, AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>> entry : children) {
+		canonicalizeTreeDiscriminators(entry.getValue(), newAlphabet);
+	}
+}
+
+// Helper method to recursively collect tree information
+private static int collectTreeInfo(
+		AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> node,
+		List<StateInfo<String, Word<Word<String>>>> states,
+		List<Word<String>> discriminators,
+		int currentDepth) {
+		
+		if (node.isLeaf()) {
+			// Leaf node - contains StateInfo
+			StateInfo<String, Word<Word<String>>> stateInfo = node.getData();
+			if (stateInfo != null) {
+				states.add(stateInfo);
+			}
+			return currentDepth;
+		} else {
+			// Internal node - contains discriminator
+			Word<String> discriminator = node.getDiscriminator();
+			if (discriminator != null) {
+				discriminators.add(discriminator);
+			}
+			
+			// Recursively process children
+			int maxDepth = currentDepth;
+			Collection<Map.Entry<Word<Word<String>>, AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>>> children = node.getChildEntries();
+			for (Map.Entry<Word<Word<String>>, AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>> entry : children) {
+				int childDepth = collectTreeInfo(entry.getValue(), states, discriminators, currentDepth + 1);
+				maxDepth = Math.max(maxDepth, childDepth);
+			}
+			
+			return maxDepth;
+		}
+	}
+	
+	// ============================================================================
+	// COMPARE TWO TREES - Shows differences in StateInfo between products
+	// ============================================================================
+	private static void compareTreesBetweenProducts(
+			MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree1,
+			MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree2,
+			int product1Num,
+			int product2Num) {
+		
+		System.out.println("\n╔════════════════════════════════════════════════════════════════╗");
+		System.out.println("║  TREE COMPARISON: Product " + product1Num + " vs Product " + product2Num + "                      ║");
+		System.out.println("╚════════════════════════════════════════════════════════════════╝\n");
+		
+		if (tree1 == null || tree2 == null) {
+			System.out.println("⚠ Cannot compare - one or both trees are null");
+			return;
+		}
+		
+		// Collect info from both trees
+		List<StateInfo<String, Word<Word<String>>>> states1 = new ArrayList<>();
+		List<Word<String>> disc1 = new ArrayList<>();
+		int depth1 = collectTreeInfo(tree1.getRoot(), states1, disc1, 0);
+		
+		List<StateInfo<String, Word<Word<String>>>> states2 = new ArrayList<>();
+		List<Word<String>> disc2 = new ArrayList<>();
+		int depth2 = collectTreeInfo(tree2.getRoot(), states2, disc2, 0);
+		
+		System.out.println("COMPARISON SUMMARY:");
+		System.out.println("  Product " + product1Num + " - States: " + states1.size() + ", Discriminators: " + disc1.size() + ", Depth: " + depth1);
+		System.out.println("  Product " + product2Num + " - States: " + states2.size() + ", Discriminators: " + disc2.size() + ", Depth: " + depth2);
+		System.out.println();
+		
+		// Find common and different discriminators
+		Set<String> disc1Set = new HashSet<>();
+		Set<String> disc2Set = new HashSet<>();
+		for (Word<String> d : disc1) disc1Set.add(d.toString());
+		for (Word<String> d : disc2) disc2Set.add(d.toString());
+		
+		Set<String> commonDisc = new HashSet<>(disc1Set);
+		commonDisc.retainAll(disc2Set);
+		
+		Set<String> onlyInProduct1 = new HashSet<>(disc1Set);
+		onlyInProduct1.removeAll(disc2Set);
+		
+		Set<String> onlyInProduct2 = new HashSet<>(disc2Set);
+		onlyInProduct2.removeAll(disc1Set);
+		
+		System.out.println("DISCRIMINATOR COMPARISON:");
+		System.out.println("  Common discriminators: " + commonDisc.size());
+		System.out.println("  Only in Product " + product1Num + ": " + onlyInProduct1.size());
+		System.out.println("  Only in Product " + product2Num + ": " + onlyInProduct2.size());
+		
+		if (!onlyInProduct1.isEmpty()) {
+			System.out.println("\n  Discriminators only in Product " + product1Num + ":");
+			for (String d : onlyInProduct1) {
+				System.out.println("    - " + d);
+			}
+		}
+		
+		if (!onlyInProduct2.isEmpty()) {
+			System.out.println("\n  Discriminators only in Product " + product2Num + ":");
+			for (String d : onlyInProduct2) {
+				System.out.println("    - " + d);
+			}
+		}
+		
+		System.out.println("\n═══════════════════════════════════════════════════════════════\n");
+	}
 
 	public static final String EQ = "eq";
 	public static final String SOT = "sot";
@@ -562,7 +850,7 @@ if (i==0){
 	builder.setOracle(mqOracle);
 	builder.setAlphabet(combinedAlphabet);
 	
-	learner = builder.withAlphabet(product1Alphabet).create(null);
+	learner = builder.withAlphabet(product1Alphabet).create(null,null);
 	System.out.println("Product " + i + ": Learning from scratch");
 	System.out.println("  Initial alphabet size = " + product1Alphabet.size());
 }
@@ -682,10 +970,59 @@ String cleanInput = input;
 	builder.setOracle(mqOracle);
 	builder.setAlphabet(combinedAlphabet);
 	
-	// TEMPORARY: Learn from scratch to test if the issue is with tree reuse
-	// learner = builder.withAlphabet(extendedAlphabet).create(null);
-	// TODO: Re-enable tree reuse once we fix the alphabet issue
-	learner = builder.withAlphabet(extendedAlphabet).create(tree_round2);
+	// Reuse tree AND hypothesis from previous product
+	// But first, we need to update the hypothesis to use the extended alphabet
+	// Create a new hypothesis with extended alphabet and copy structure from previous
+	CompactMealy<String, Word<String>> adaptedHypothesis = new CompactMealy<>(extendedAlphabet);
+	
+	// Copy all states from previous hypothesis
+	Map<Integer, Integer> stateMap2 = new HashMap<>();
+	for (Integer oldState : previousHypothesis.getStates()) {
+		Integer newState = adaptedHypothesis.addState();
+		stateMap2.put(oldState, newState);
+	}
+	adaptedHypothesis.setInitialState(stateMap2.get(previousHypothesis.getInitialState()));
+	
+	// Copy transitions for symbols that exist in previous product
+	for (Integer oldState : previousHypothesis.getStates()) {
+		Integer newState = stateMap2.get(oldState);
+		for (String symbol : product1Alphabet) {  // product1Alphabet is from Product 0
+			Integer oldSucc = previousHypothesis.getSuccessor(oldState, symbol);
+			Word<String> output = previousHypothesis.getOutput(oldState, symbol);
+			if (oldSucc != null) {
+				adaptedHypothesis.addTransition(newState, symbol, stateMap2.get(oldSucc), output);
+			}
+		}
+	}
+	
+	// Add placeholder transitions for NEW symbols (will be refined during learning)
+	// These are symbols in extendedAlphabet but not in product1Alphabet
+	for (String symbol : extendedAlphabet) {
+		if (!product1Alphabet.containsSymbol(symbol)) {
+			// Add self-loops with OMEGA for new symbols as placeholders
+			for (Integer newState : adaptedHypothesis.getStates()) {
+				adaptedHypothesis.addTransition(newState, symbol, newState, Utils.OMEGA_SYMBOL);
+			}
+		}
+	}
+	
+	// Update StateInfo IDs in the tree to match the new state mapping
+	
+	updateStateInfoInTree(tree_round2.getRoot(), stateMap);
+	
+	// CRITICAL: Canonicalize discriminators in tree to use new alphabet's symbol instances
+	// Without this, oracle queries will fail with IllegalArgumentException due to symbol identity mismatch
+	System.out.println("\n========== CANONICALIZING TREE DISCRIMINATORS ==========");
+	System.out.println("Replacing discriminator symbols from old alphabet with new alphabet instances");
+	canonicalizeTreeDiscriminators(tree_round2.getRoot(), extendedAlphabet);
+	System.out.println("========================================================\n");
+	
+	System.out.println("  Adapted hypothesis: " + previousHypothesis.size() + " states → " + adaptedHypothesis.size() + " states");
+	System.out.println("  Alphabet extended: " + product1Alphabet.size() + " → " + extendedAlphabet.size() + " symbols");
+	System.out.println("  Tree StateInfo updated to match new hypothesis");
+	System.out.println("  Tree discriminators canonicalized to new alphabet");
+	
+	learner = builder.withAlphabet(extendedAlphabet).create(tree_round2, adaptedHypothesis);
 	
 	System.out.println("  Learner created with alphabet size: " + learner.get_alphabet_symbol().size());
 	
@@ -706,7 +1043,6 @@ String cleanInput = input;
 	for (String s : productAlphabet) {
 		System.out.print(s + " ");
 	}
-	System.out.println();
 	
 	System.out.println("\nLearner's alphabet after loading tree has " + learner.get_alphabet_symbol().size() + " symbols:");
 	for (String s : learner.get_alphabet_symbol()) {
@@ -841,27 +1177,50 @@ String cleanInput = input;
 		}
 		System.out.println("==========================================\n");
 	}	
-		// FIX 4: Always run with false to avoid premature tree capture at round 4
-		// We need the COMPLETE tree from Product 0, not the incomplete round-4 tree
-		// The round-4 tree captured at round 4 only has Product 0's alphabet
-		// and doesn't have proper structure for alphabet extension in Product 1
-		
-		if(i==0){
-			experiment.run(true);
-
-		}
-		else{
-			experiment.run(false);
-		}
+	// FIX 4: Always run with false to avoid premature tree capture at round 4
+	// We need the COMPLETE tree from Product 0, not the incomplete round-4 tree
+	// The round-4 tree captured at round 4 only has Product 0's alphabet
+	// and doesn't have proper structure for alphabet extension in Product 1
+	
+	if(i==0){
+		experiment.run(true, null);
+	}
+	else{
+		System.out.println("\n======= Starting Product " + i + " with previous hypothesis =======");
+		System.out.println("Previous hypothesis states: " + (previousHypothesis != null ? previousHypothesis.size() : "null"));
+		System.out.println("==============================================================\n");
+		// FIX: Don't pass previousHypothesis to experiment.run()
+		// The learner has already been initialized with the tree and will build its own hypothesis
+		// with the extended alphabet. Passing previousHypothesis causes a mismatch between
+		// the hypothesis used for EQ checking and the learner's internal hypothesis.
+		experiment.run(false, null);
+	}
 	
 		// ========== SAVE FOR NEXT PRODUCT: Update tree AND alphabet ==========
 	MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree = learner.getDiscriminationTree();
+	MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_before_save = tree_round2; // Save old tree for comparison
 	tree_round2 = experiment.getDiscrtree();  // Tree for next product
 	product1Alphabet = (GrowingAlphabet<String>) learner.get_alphabet_symbol();  // Updated alphabet
+	
+	// Save hypothesis for next product
+	previousHypothesis = (CompactMealy<String, Word<String>>) experiment.getFinalHypothesis();
 	
 	System.out.println("Saved for next product:");
 	// System.out.println("  Tree depth/size: " + tree.getRoot().subtreeSize());
 	System.out.println("  Alphabet size: " + product1Alphabet.size());
+	System.out.println("  Hypothesis saved with " + previousHypothesis.size() + " states");
+	
+	// ========== CALL TREE ANALYSIS ==========
+	System.out.println("\n");
+	System.out.println("█████████████████████████████████████████████████████████████████");
+	System.out.println("█         ANALYZING DISCRIMINATION TREE FOR PRODUCT " + i + "          █");
+	System.out.println("█████████████████████████████████████████████████████████████████");
+	analyzeTreeStructureDetailed(tree_round2, i, productAlphabet);
+	
+	// If this is Product 1, compare with Product 0's tree
+	if (i == 1 && tree_before_save != null) {
+		compareTreesBetweenProducts(tree_before_save, tree_round2, 0, 1);
+	}
 	
 
 		

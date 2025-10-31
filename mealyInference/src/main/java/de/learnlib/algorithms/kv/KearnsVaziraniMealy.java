@@ -17,10 +17,12 @@ package de.learnlib.algorithms.kv;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import de.learnlib.algorithms.kv.GenerateBuilder;
@@ -86,9 +88,16 @@ public class KearnsVaziraniMealy<I, O>
                                MembershipOracle<I, Word<O>> oracle,
                                boolean repeatedCounterexampleEvaluation,
                                AcexAnalyzer counterexampleAnalyzer,
-                               MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> tree) {
+                               MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> tree,
+                               CompactMealy<I, O> hyp) {
         this.alphabet = alphabet;
-        this.hypothesis = new CompactMealy<>(alphabet);
+        if (hyp==null){
+            this.hypothesis = new CompactMealy<>(alphabet);
+
+        }
+        else{
+            this.hypothesis = hyp;
+        }
         this.oracle = oracle;
         this.repeatedCounterexampleEvaluation = repeatedCounterexampleEvaluation;
         this.ceAnalyzer = counterexampleAnalyzer;
@@ -107,7 +116,7 @@ public class KearnsVaziraniMealy<I, O>
             //     Class<?> type = field.getType();
             //     Object value;
             //     try {
-            //         value = field.get(tree);       // read the field’s value
+            //         value = field.get(tree);       // read the field's value
             //     } catch (IllegalAccessException e) {
             //         value = "<inaccessible>";
             //     }
@@ -115,6 +124,10 @@ public class KearnsVaziraniMealy<I, O>
             //     System.out.printf("%s (%s) = %s%n", name, type.getSimpleName(), value);
             // }
             this.discriminationTree =  tree;
+            // If reusing a tree and hypothesis, populate stateInfos from the tree
+            if (hyp != null && hyp.size() > 0) {
+                populateStateInfosFromTree();
+            }
         }
         
     }
@@ -172,12 +185,35 @@ public class KearnsVaziraniMealy<I, O>
         Word<I> effInput = input.prefix(mismatchIdx + 1);
         Word<O> effOutput = output.prefix(mismatchIdx + 1);
 
-        KVAbstractCounterexample acex = new KVAbstractCounterexample(effInput, effOutput, oracle);
+        // CRITICAL FIX: Canonicalize symbols in counterexample to match alphabet instances
+        // Alphabets use object identity, not string equality, so we must use the exact symbol objects
+        // from the alphabet to avoid IllegalArgumentException in counterexample analysis
+        @SuppressWarnings("unchecked")
+        I[] canonicalSymbols = (I[]) new Object[effInput.length()];
+        for (int i = 0; i < effInput.length(); i++) {
+            I symbol = effInput.getSymbol(i);
+            try {
+                int symbolIdx = alphabet.getSymbolIndex(symbol);
+                canonicalSymbols[i] = alphabet.getSymbol(symbolIdx);
+            } catch (IllegalArgumentException e) {
+                System.err.println("ERROR: Symbol '" + symbol + "' from counterexample not in alphabet!");
+                System.err.println("  Symbol identity hash: " + System.identityHashCode(symbol));
+                System.err.println("  Alphabet size: " + alphabet.size());
+                System.err.println("  Alphabet symbols:");
+                for (I s : alphabet) {
+                    System.err.println("    '" + s + "' (hash=" + System.identityHashCode(s) + ")");
+                }
+                throw e;
+            }
+        }
+        Word<I> canonicalEffInput = Word.fromList(java.util.Arrays.asList(canonicalSymbols));
+
+        KVAbstractCounterexample acex = new KVAbstractCounterexample(canonicalEffInput, effOutput, oracle);
         int idx = ceAnalyzer.analyzeAbstractCounterexample(acex, 0);
 
-        Word<I> prefix = effInput.prefix(idx);
+        Word<I> prefix = canonicalEffInput.prefix(idx);
         StateInfo<I, Word<O>> srcStateInfo = acex.getStateInfo(idx);
-        I sym = effInput.getSymbol(idx);
+        I sym = canonicalEffInput.getSymbol(idx);
         LCAInfo<Word<O>, @Nullable AbstractWordBasedDTNode<I, Word<O>, StateInfo<I, Word<O>>>> lca =
                 acex.getLCA(idx + 1);
         assert lca != null;
@@ -288,11 +324,44 @@ public class KearnsVaziraniMealy<I, O>
         return stateInfo;
     }
 
+    private void populateStateInfosFromTree() {
+        int numStates = hypothesis.size();
+        // Initialize the list with the correct size, filled with null values
+        stateInfos = new ArrayList<>(Collections.nCopies(numStates, null));
+        collectStateInfos(discriminationTree.getRoot());
+    }
+    
+    private void collectStateInfos(AbstractWordBasedDTNode<I, Word<O>, StateInfo<I, Word<O>>> node) {
+        if (node.isLeaf()) {
+            StateInfo<I, Word<O>> stateInfo = node.getData();
+            if (stateInfo != null) {
+                // Add StateInfo at the index matching its state ID
+                // This ensures stateInfos.get(stateId) returns the correct StateInfo
+                int stateId = stateInfo.id;
+                if (stateId >= 0 && stateId < stateInfos.size()) {
+                    stateInfos.set(stateId, stateInfo);
+                    // Restore the bidirectional link from StateInfo to tree node
+                    stateInfo.dtNode = node;
+                }
+            }
+        } else {
+            Collection<Map.Entry<Word<O>, AbstractWordBasedDTNode<I, Word<O>, StateInfo<I, Word<O>>>>> children = node.getChildEntries();
+            for (Map.Entry<Word<O>, AbstractWordBasedDTNode<I, Word<O>, StateInfo<I, Word<O>>>> entry : children) {
+                collectStateInfos(entry.getValue());
+            }
+        }
+    }
+
     private void initialize() {
-        StateInfo<I, Word<O>> init = createInitialState();
-        discriminationTree.getRoot().setData(init);
-        init.dtNode = discriminationTree.getRoot();
-        initState(init);
+        // If hypothesis already has states, it means we're reusing a previous hypothesis
+        // In this case, we should not create a new initial state
+        if (hypothesis.size() == 0) {
+            StateInfo<I, Word<O>> init = createInitialState();
+            discriminationTree.getRoot().setData(init);
+            init.dtNode = discriminationTree.getRoot();
+            initState(init);
+        }
+        // If reusing a hypothesis, the discrimination tree already contains the state info
     }
 
     private void initState(StateInfo<I, Word<O>> stateInfo) {
@@ -515,10 +584,35 @@ public class KearnsVaziraniMealy<I, O>
             int currState = hypothesis.getIntInitialState();
             int i = 0;
             states[i++] = stateInfos.get(currState);
+            
+            System.out.println("\n=== KVAbstractCounterexample: Processing ceWord ===");
+            System.out.println("ceWord length: " + m);
+            System.out.println("ceWord: " + ceWord);
+            System.out.println("Hypothesis alphabet size: " + alphabet.size());
+            System.out.println("Processing symbols:");
+            
             for (I sym : ceWord) {
-                currState = hypothesis.getSuccessor(currState, sym);
-                states[i++] = stateInfos.get(currState);
+                System.out.println("  Symbol: '" + sym + "' (hash=" + System.identityHashCode(sym) + ")");
+                System.out.println("  Current state: " + currState);
+                
+                try {
+                    // Check if symbol is in alphabet
+                    int symIdx = alphabet.getSymbolIndex(sym);
+                    System.out.println("  Symbol index in alphabet: " + symIdx);
+                    
+                    currState = hypothesis.getSuccessor(currState, sym);
+                    System.out.println("  Next state: " + currState);
+                    states[i++] = stateInfos.get(currState);
+                } catch (IllegalArgumentException e) {
+                    System.err.println("  ERROR: Symbol '" + sym + "' not found in alphabet!");
+                    System.err.println("  Alphabet symbols:");
+                    for (I s : alphabet) {
+                        System.err.println("    '" + s + "' (hash=" + System.identityHashCode(s) + ")");
+                    }
+                    throw e;
+                }
             }
+            System.out.println("=== KVAbstractCounterexample: Done ===\n");
 
             // Output of last transition separates hypothesis from target
             O lastHypOut = hypothesis.getOutput(states[m - 1].id, ceWord.lastSymbol());
@@ -536,8 +630,12 @@ public class KearnsVaziraniMealy<I, O>
 
         @Override
         protected Boolean computeEffect(int index) {
+            System.out.println("\n=== computeEffect: index=" + index + " ===");
             Word<I> prefix = ceWord.prefix(index);
+            System.out.println("Prefix: " + prefix + " (length=" + prefix.length() + ")");
+            
             StateInfo<I, Word<O>> info = states[index];
+            System.out.println("StateInfo: " + (info != null ? info.id : "null"));
 
             // Save the expected outcomes on the path from the leaf representing the state
             // to the root on a stack
@@ -549,20 +647,43 @@ public class KearnsVaziraniMealy<I, O>
                 expect.push(parentOutcome);
                 node = node.getParent();
             }
+            System.out.println("Expected outcomes collected: " + expect.size());
 
             AbstractWordBasedDTNode<I, Word<O>, StateInfo<I, Word<O>>> currNode = discriminationTree.getRoot();
 
+            int queryCount = 0;
             while (!expect.isEmpty()) {
                 Word<I> suffix = currNode.getDiscriminator();
-                Word<O> out = oracle.answerQuery(prefix, suffix);
-                Word<O> e = expect.pop();
-                if (!Objects.equals(out, e)) {
-                    lcas[index] = new LCAInfo<>(currNode, e, out);
-                    return false;
+                System.out.println("  Query " + (++queryCount) + ": prefix=" + prefix + ", suffix=" + suffix);
+                System.out.println("    Prefix symbols:");
+                for (int i = 0; i < prefix.length(); i++) {
+                    I sym = prefix.getSymbol(i);
+                    System.out.println("      [" + i + "] '" + sym + "' (hash=" + System.identityHashCode(sym) + ")");
                 }
-                currNode = currNode.child(out);
+                System.out.println("    Suffix symbols:");
+                for (int i = 0; i < suffix.length(); i++) {
+                    I sym = suffix.getSymbol(i);
+                    System.out.println("      [" + i + "] '" + sym + "' (hash=" + System.identityHashCode(sym) + ")");
+                }
+                
+                try {
+                    Word<O> out = oracle.answerQuery(prefix, suffix);
+                    System.out.println("    Result: " + out);
+                    Word<O> e = expect.pop();
+                    if (!Objects.equals(out, e)) {
+                        lcas[index] = new LCAInfo<>(currNode, e, out);
+                        System.out.println("  Mismatch found, returning false");
+                        return false;
+                    }
+                    currNode = currNode.child(out);
+                } catch (Exception ex) {
+                    System.err.println("  ERROR during oracle query!");
+                    System.err.println("  Exception: " + ex.getClass().getName() + ": " + ex.getMessage());
+                    throw ex;
+                }
             }
 
+            System.out.println("=== computeEffect: returning true ===\n");
             assert currNode.isLeaf() && expect.isEmpty();
             return true;
         }

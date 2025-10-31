@@ -562,7 +562,7 @@ if (i==0){
 	builder.setOracle(mqOracle);
 	builder.setAlphabet(combinedAlphabet);
 	
-	learner = builder.withAlphabet(product1Alphabet).create(null);
+	learner = builder.withAlphabet(product1Alphabet).create(null,null);
 	System.out.println("Product " + i + ": Learning from scratch");
 	System.out.println("  Initial alphabet size = " + product1Alphabet.size());
 }
@@ -685,7 +685,7 @@ String cleanInput = input;
 	// TEMPORARY: Learn from scratch to test if the issue is with tree reuse
 	// learner = builder.withAlphabet(extendedAlphabet).create(null);
 	// TODO: Re-enable tree reuse once we fix the alphabet issue
-	learner = builder.withAlphabet(extendedAlphabet).create(tree_round2);
+	learner = builder.withAlphabet(extendedAlphabet).create(tree_round2,null);
 	
 	System.out.println("  Learner created with alphabet size: " + learner.get_alphabet_symbol().size());
 	
@@ -846,11 +846,11 @@ String cleanInput = input;
 		// and doesn't have proper structure for alphabet extension in Product 1
 		
 		if(i==0){
-			experiment.run(true);
+			experiment.run(true,null);
 
 		}
 		else{
-			experiment.run(false);
+			experiment.run(false,null);
 		}
 	
 		// ========== SAVE FOR NEXT PRODUCT: Update tree AND alphabet ==========

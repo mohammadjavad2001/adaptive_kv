@@ -6,11 +6,11 @@
  */
 
  package de.learnlib.algorithms.kv;
- import de.learnlib.algorithms.kv.KearnsVaziraniMealy;
- //  import de.learnlib.ds.MultiDTree;
-  import de.learnlib.datastructure.discriminationtree.MultiDTree;
- 
-  import net.automatalib.words.Alphabet;
+import de.learnlib.algorithms.kv.KearnsVaziraniMealy;
+//  import de.learnlib.ds.MultiDTree;
+ import de.learnlib.datastructure.discriminationtree.MultiDTree;
+import net.automatalib.automata.transducers.impl.compact.CompactMealy;
+import net.automatalib.words.Alphabet;
  //  import de.learnlib.algorithms.kv.KearnsVaziraniMealy;
   import net.automatalib.words.Word;
  //  import de.learnlib.ds.StateInfo;
@@ -45,14 +45,16 @@
          de.learnlib.api.oracle.MembershipOracle<I,net.automatalib.words.Word<O>> oracle,
          boolean repeatedCounterexampleEvaluation,
          de.learnlib.acex.AcexAnalyzer counterexampleAnalyzer,
-         MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> dsicTree 
+         MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> dsicTree,
+         CompactMealy<I, O> hyp 
          ) {
          return new KearnsVaziraniMealy< I, O>(
             alphabet,
             oracle,
             repeatedCounterexampleEvaluation,
             counterexampleAnalyzer,
-            dsicTree
+            dsicTree,
+            hyp
             );
      }
      private net.automatalib.words.Alphabet<I> alphabet;
@@ -75,13 +77,14 @@
           this.counterexampleAnalyzer = de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealy.BuilderDefaults.counterexampleAnalyzer();
       }
   
-      public KearnsVaziraniMealy<I, O> create(MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> tree) {
+      public KearnsVaziraniMealy<I, O> create(MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> tree, CompactMealy<I, O> hyp) {
           return $createDispatch(
               this.alphabet,
               this.oracle,
               this.repeatedCounterexampleEvaluation,
               this.counterexampleAnalyzer,
-              tree);
+              tree,
+              hyp);
               
       }
       

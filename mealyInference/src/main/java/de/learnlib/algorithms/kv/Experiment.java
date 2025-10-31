@@ -81,13 +81,13 @@ public class Experiment<A extends Object> {
         this.discrtree = discrtree;
     }
     
-    public A run(boolean first) {
+    public A run(boolean first, @Nullable A hyp_Starter) {
         
         if (this.finalHypothesis != null) {
             throw new IllegalStateException("Experiment has already been run");
         }
 
-        finalHypothesis = impl.run(first);
+        finalHypothesis = impl.run(first, hyp_Starter);
         return finalHypothesis;
     }
 
@@ -148,7 +148,7 @@ public class Experiment<A extends Object> {
             this.inputs = inputs;
         }
 
-        public A run(boolean first) {
+        public A run(boolean first, @Nullable A hyp_starter) {
             rounds.increment();
             LOGGER.logPhase("Starting round " + rounds.getCount());
             System.out.println("Starting round " + rounds.getCount());
@@ -159,16 +159,50 @@ public class Experiment<A extends Object> {
             learningAlgorithm.startLearning();
             profileStop(LEARNING_PROFILE_KEY);
 
-
+            A hyp = null;
             while (true) {
-                final A hyp = learningAlgorithm.getHypothesisModel();
-		        //visualize fsm 
+                
+                
+                if (rounds.getCount()==1 && hyp_starter != null){
+                    hyp = hyp_starter;
+                    System.out.println("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEJJJJJJJJJJJ");
+ 
+
+                }
+                else{
+                    System.out.println("KKKKKKKKKK");
+                hyp = learningAlgorithm.getHypothesisModel();
+                // visualize FSM using its graph view, matching Visualization API
+                // Visualization.visualize(((GraphViewable) hyp).graphView(), true);
+
+            }
+                //visualize fsm 
                 // Visualization.visualize(((GraphViewable) hyp).graphView(), true);
                 KearnsVaziraniMealy<String, Word<String>> kvLearner = (KearnsVaziraniMealy<String, Word<String>>) learningAlgorithm;
                 //visualize discrimintation tree
-                MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree = kvLearner.getDiscriminationTree();
+                if(rounds.getCount()==3){
+      
+                }
+                if(rounds.getCount()==4 && first){
+                    // Create a DEEP COPY of the tree at round 2
+                    MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = kvLearner.getDiscriminationTree();
+                    setDiscrtree(tree_round2);
+                    System.out.println("PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP");
+                    return hyp;
+
+                    // MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = 
+                    // TreeCopyUtil.deepCopyTree(kvLearner.getDiscriminationTree());
                 
+                    // setDiscrtree(tree_round2);
+                    // System.out.println("========== DEEP COPY OF TREE SAVED AT ROUND 2 ==========");
+                    // System.out.println("This snapshot will remain unchanged as learning continues");
+                    // System.out.println("========================================================");
+                }
+                MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree = kvLearner.getDiscriminationTree();
+                System.out.println("this is tree of round "+rounds.getCount());
                 Visualization.visualize(tree, true);
+                System.out.println("this is hypothesis of round "+rounds.getCount());
+                Visualization.visualize(((GraphViewable) hyp).graphView(), true);
                 if (logModels) {
                     LOGGER.logModel(hyp);
                 }
@@ -197,21 +231,7 @@ public class Experiment<A extends Object> {
                 System.out.println(rounds.getCount());
                 LOGGER.logPhase("Starting round " + rounds.getCount());
                 System.out.println("Starting round " + rounds.getCount());
-                if(rounds.getCount()==2 && first){
-                    // Create a DEEP COPY of the tree at round 2
-                    MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = kvLearner.getDiscriminationTree();
-                    setDiscrtree(tree_round2);
-                    System.out.println("PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP");
-                    // return hyp;
-
-                    // MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = 
-                    // TreeCopyUtil.deepCopyTree(kvLearner.getDiscriminationTree());
                 
-                    setDiscrtree(tree_round2);
-                    System.out.println("========== DEEP COPY OF TREE SAVED AT ROUND 2 ==========");
-                    System.out.println("This snapshot will remain unchanged as learning continues");
-                    System.out.println("========================================================");
-                }
                 LOGGER.logPhase("Learning");
 
                 profileStart(LEARNING_PROFILE_KEY);
