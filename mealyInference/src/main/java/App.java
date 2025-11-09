@@ -66,6 +66,23 @@ import net.automatalib.words.Alphabet;
 
 public class App {
 
+	// Static arrays to store statistics for comparison
+	private static long[][] productStats = new long[10][6]; // [product][metric]
+	private static int[] productStates = new int[10];
+	private static int[] productAlphabetSizes = new int[10];
+
+	private static int ExtractValue(String string_1) {
+		// Extract numeric value from statistical summary string
+		int value_1 = 0;
+		int j = string_1.lastIndexOf(" ");
+		String string_2 = "";
+		if (j >= 0) {
+			string_2 = string_1.substring(j + 1);
+		}
+		value_1 = Integer.parseInt(string_2);
+		return value_1;
+	}
+
 	public static final String EQ = "eq";
 	public static final String SOT = "sot";
 	public static final String SOT2 = "sot2";
@@ -367,11 +384,57 @@ public class App {
         // Run the experiment
         experiment.run();
 
-        // Output results
-        System.out.println("Learning completed.");
+        // ========== METRICS FOR NORMAL LEARNING EVALUATION ==========
+        int productIndex = 0; // Since this is a single product, use index 0
+        
+        System.out.println("\n========== PRODUCT LEARNING COMPLETED (NORMAL APPROACH) ==========");
         System.out.println("Final hypothesis states: " + experiment.getFinalHypothesis().getStates().size());
-        System.out.println("Membership queries: " + mqRst.getStatisticalData());
-        System.out.println("Equivalence queries: " + experiment.getRounds().getCount());
+        System.out.println("Rounds (EQ queries): " + experiment.getRounds().getCount());
+        System.out.println("Membership queries - Resets: " + ExtractValue(mqRst.getStatisticalData().getSummary()));
+        System.out.println("Membership queries - Symbols: " + ExtractValue(mqSym.getStatisticalData().getSummary()));
+        System.out.println("Equivalence queries - Resets: " + ExtractValue(eq_rst.getStatisticalData().getSummary()));
+        System.out.println("Equivalence queries - Symbols: " + ExtractValue(eq_sym.getStatisticalData().getSummary()));
+        System.out.println("*** NORMAL LEARNING (NO REUSE) ***");
+        System.out.println("  Learning from scratch - no tree reuse");
+        System.out.println("  Alphabet size: " + mealyMachine.getInputAlphabet().size() + " symbols");
+        System.out.println("====================================================\n");
+        
+        // Store statistics for comparison
+        productStats[productIndex][0] = experiment.getRounds().getCount(); // Rounds
+        productStats[productIndex][1] = ExtractValue(mqRst.getStatisticalData().getSummary()); // MQ Resets
+        productStats[productIndex][2] = ExtractValue(mqSym.getStatisticalData().getSummary()); // MQ Symbols
+        productStats[productIndex][3] = ExtractValue(eq_rst.getStatisticalData().getSummary()); // EQ Resets
+        productStats[productIndex][4] = ExtractValue(eq_sym.getStatisticalData().getSummary()); // EQ Symbols
+        productStates[productIndex] = experiment.getFinalHypothesis().getStates().size();
+        productAlphabetSizes[productIndex] = mealyMachine.getInputAlphabet().size();
+        
+        // Output detailed statistics
+        System.out.println("Learning completed.");
+        System.out.println("Statistics:");
+        System.out.println("  Membership queries - Resets: " + productStats[productIndex][1]);
+        System.out.println("  Membership queries - Symbols: " + productStats[productIndex][2]);
+        System.out.println("  Equivalence queries - Resets: " + productStats[productIndex][3]);
+        System.out.println("  Equivalence queries - Symbols: " + productStats[productIndex][4]);
+        System.out.println("  Rounds: " + productStats[productIndex][0]);
+        System.out.println("  Final hypothesis states: " + productStates[productIndex]);
+        System.out.println("  Alphabet size: " + productAlphabetSizes[productIndex]);
+        
+        // Print comprehensive summary
+        System.out.println("\n\n");
+        System.out.println("╔════════════════════════════════════════════════════════════════╗");
+        System.out.println("║         NORMAL LEARNING RESULTS SUMMARY                        ║");
+        System.out.println("╚════════════════════════════════════════════════════════════════╝");
+        System.out.println();
+        System.out.println("Product (Normal Learning):");
+        System.out.println("  Rounds: " + productStats[productIndex][0]);
+        System.out.println("  MQ Resets: " + productStats[productIndex][1] + ", Symbols: " + productStats[productIndex][2]);
+        System.out.println("  EQ Resets: " + productStats[productIndex][3] + ", Symbols: " + productStats[productIndex][4]);
+        System.out.println("  States: " + productStates[productIndex]);
+        System.out.println("  Alphabet: " + productAlphabetSizes[productIndex] + " symbols");
+        System.out.println("  ✗ No tree reuse (learning from scratch)");
+        System.out.println();
+        System.out.println("════════════════════════════════════════════════════════════════");
+        System.out.println();
 
         // Get the final hypothesis and alphabet for visualization
         MealyMachine<?, String, ?, Word<String>> finalHypothesis = experiment.getFinalHypothesis();
@@ -388,6 +451,28 @@ public class App {
         // Visualize the discrimination tree
         System.out.println("Visualizing discrimination tree...");
         Visualization.visualize(learner.getDiscriminationTree(), true);
+        
+        // ========== FINAL COMPARISON-READY OUTPUT ==========
+        System.out.println("\n\n");
+        System.out.println("╔════════════════════════════════════════════════════════════════╗");
+        System.out.println("║    DETAILED METRICS (For comparison with adaptive learning)    ║");
+        System.out.println("╚════════════════════════════════════════════════════════════════╝");
+        System.out.println();
+        System.out.println("NORMAL LEARNING METRICS:");
+        System.out.println("  ┌─ Rounds (EQ queries): " + productStats[productIndex][0]);
+        System.out.println("  ├─ MQ Resets: " + productStats[productIndex][1]);
+        System.out.println("  ├─ MQ Symbols: " + productStats[productIndex][2]);
+        System.out.println("  ├─ EQ Resets: " + productStats[productIndex][3]);
+        System.out.println("  ├─ EQ Symbols: " + productStats[productIndex][4]);
+        System.out.println("  ├─ Final States: " + productStates[productIndex]);
+        System.out.println("  └─ Alphabet Size: " + productAlphabetSizes[productIndex]);
+        System.out.println();
+        System.out.println("COMPARISON NOTE:");
+        System.out.println("  Compare these metrics with adaptive learning (hi_single.java)");
+        System.out.println("  Expected: Adaptive learning should show reduced queries for");
+        System.out.println("            subsequent products due to tree reuse");
+        System.out.println("════════════════════════════════════════════════════════════════");
+        System.out.println();
 
         SimpleProfiler.logResults();
     }
