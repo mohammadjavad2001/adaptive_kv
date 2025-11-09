@@ -27,7 +27,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import de.learnlib.acex.AcexAnalyzer;
-import de.learnlib.algorithms.kv.StateInfo;
 import de.learnlib.incremental.KearnsVaziraniDFA;
 import de.learnlib.api.oracle.MembershipOracle;
 
@@ -43,7 +42,7 @@ import de.learnlib.incremental.KearnsVaziraniDFAState;
 import net.automatalib.words.Alphabet;
 import net.automatalib.automata.fsa.impl.compact.CompactDFA;
 
-
+import de.learnlib.algorithms.kv.StateInfo;
 import net.automatalib.commons.smartcollections.ArrayStorage;
 
 import net.automatalib.commons.util.Pair;
@@ -114,6 +113,7 @@ public class IKearnsVaziraniDFA<I> extends KearnsVaziraniDFA<I> {
         }
         if (repeatedCounterexampleEvaluation) {
             while (refineHypothesisSingle(input, output)) {
+                
             }
         }
 
@@ -132,16 +132,13 @@ public class IKearnsVaziraniDFA<I> extends KearnsVaziraniDFA<I> {
             StateInfo<I, Boolean> newDest = sift(Collections.singletonList(input), hypothesis).get(0);
             StateInfo<I, Boolean> startStateInfo = sift(Collections.singletonList(Word.epsilon()), hypothesis).get(0);
             newDest.addIncoming(startStateInfo.id, alphabet.getSymbolIndex(input.getSymbol(0)));
-            stateInfos.get(hypothesis.getTransition(startState.id, input.getSymbol(0))).removeIncoming(startState,
-                    input.getSymbol(0));
-
             hypothesis.removeAllTransitions(startState.id, input.getSymbol(0));
             hypothesis.addTransition(startState.id, input.getSymbol(0), newDest.id);
             assert hypothesis.computeOutput(input) == output;
             return true;
         }
 
-        KVAbstractCounterexample acex = new KVAbstractCounterexample(input, output, oracle);
+        KVAbstractCounterexample acex = new KVAbstractCounterexample(input, output, getOracle());
         int idx = ceAnalyzer.analyzeAbstractCounterexample(acex, 1);
 
         Word<I> prefix = input.prefix(idx);
@@ -174,9 +171,6 @@ public class IKearnsVaziraniDFA<I> extends KearnsVaziraniDFA<I> {
                             siftedNode.getData().dtNode = siftedNode;
                             currentNode.setData(null);
                         } else {
-                            if (currentNode.getData().accessSequence.getClass() == Word.epsilon().getClass()) {
-                                siftedNode.getData().accessSequence = Word.epsilon();
-                            }
                             removeLeaf(currentNode);
                         }
                         break;
@@ -190,7 +184,7 @@ public class IKearnsVaziraniDFA<I> extends KearnsVaziraniDFA<I> {
         // are correct from the beginning w.r.t the new target. As such, recompute every
         // transition.
 
-        rebuildHypothesis(new HashSet<>(stateInfos.keySet()));
+        rebuildHypothesis(new HashSet<>(stateInfos.stream().map(si -> si.id).collect(Collectors.toSet())));
     }
 
     private void removeLeaf(AbstractWordBasedDTNode<I, Boolean, StateInfo<I, Boolean>> leaf) {
@@ -199,38 +193,28 @@ public class IKearnsVaziraniDFA<I> extends KearnsVaziraniDFA<I> {
                 .getChild(!leaf.getParentOutcome());
 
         if (parentNode.getDiscriminator().getClass() != Word.epsilon().getClass()) {
-            parentNode.replaceChildren(siblingNode.getChildMap());
-            if (!parentNode.isLeaf()) {
-                parentNode.getChild(false).setParent(parentNode);
-                parentNode.getChild(true).setParent(parentNode);
-            }
+            Map<Boolean, AbstractWordBasedDTNode<I, Boolean, StateInfo<I, Boolean>>> childMap = 
+                siblingNode.getChildEntries().stream()
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            parentNode.replaceChildren(childMap);
 
             parentNode.setDiscriminator(siblingNode.getDiscriminator());
             if (siblingNode.isLeaf()) {
                 parentNode.setData(siblingNode.getData());
             } else {
-                parentNode.clearData();
+                parentNode.setData(null);
             }
             if (parentNode.isLeaf() && parentNode.getData() != null) {
                 parentNode.getData().dtNode = parentNode;
             }
-            reduceDepth(siblingNode);
         } else {
             leaf.setData(null);
         }
     }
 
-    private void reduceDepth(AbstractWordBasedDTNode<I, Boolean, StateInfo<I, Boolean>> leaf) {
-        Iterator<AbstractWordBasedDTNode<I, Boolean, StateInfo<I, Boolean>>> nodeIt = DiscriminationTreeIterators
-                .nodeIterator(leaf);
-        while (nodeIt.hasNext()) {
-            AbstractWordBasedDTNode<I, Boolean, StateInfo<I, Boolean>> node = nodeIt.next();
-            node.setDepth(node.getDepth() - 1);
-        }
-    }
-
     private void rebuildHypothesis(Set<Integer> idsRemoved) {
-        Map<Integer, StateInfo<I, Boolean>> oldIds = new HashMap<>(stateInfos);
+        Map<Integer, StateInfo<I, Boolean>> oldIds = stateInfos.stream()
+            .collect(Collectors.toMap(si -> si.id, si -> si));
         Map<StateInfo<I, Boolean>, Integer> oldStateInfos = oldIds.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getValue, Map.Entry::getKey));
 
@@ -242,10 +226,14 @@ public class IKearnsVaziraniDFA<I> extends KearnsVaziraniDFA<I> {
         while (acceptingIt.hasNext()) {
             AbstractWordBasedDTNode<I, Boolean, StateInfo<I, Boolean>> node = acceptingIt.next();
             if (node.getData() != null) {
-                node.getData().id = newhyp.addIntState(true);
-                stateInfos.put(node.getData().id, node.getData());
-                if (node.getData().accessSequence.getClass() == Word.epsilon().getClass()) {
-                    newhyp.setInitialState(node.getData().id);
+                StateInfo<I, Boolean> oldInfo = node.getData();
+                int newId = newhyp.addIntState(true);
+                StateInfo<I, Boolean> newInfo = new StateInfo<>(newId, oldInfo.accessSequence);
+                newInfo.dtNode = node;
+                node.setData(newInfo);
+                stateInfos.add(newInfo);
+                if (oldInfo.accessSequence.getClass() == Word.epsilon().getClass()) {
+                    newhyp.setInitialState(newId);
                 }
             }
         }
@@ -255,15 +243,19 @@ public class IKearnsVaziraniDFA<I> extends KearnsVaziraniDFA<I> {
         while (rejectingIt.hasNext()) {
             AbstractWordBasedDTNode<I, Boolean, StateInfo<I, Boolean>> node = rejectingIt.next();
             if (node.getData() != null) {
-                node.getData().id = newhyp.addIntState(false);
-                stateInfos.put(node.getData().id, node.getData());
-                if (node.getData().accessSequence.getClass() == Word.epsilon().getClass()) {
-                    newhyp.setInitialState(node.getData().id);
+                StateInfo<I, Boolean> oldInfo = node.getData();
+                int newId = newhyp.addIntState(false);
+                StateInfo<I, Boolean> newInfo = new StateInfo<>(newId, oldInfo.accessSequence);
+                newInfo.dtNode = node;
+                node.setData(newInfo);
+                stateInfos.add(newInfo);
+                if (oldInfo.accessSequence.getClass() == Word.epsilon().getClass()) {
+                    newhyp.setInitialState(newId);
                 }
             }
         }
 
-        List<StateInfo<I, Boolean>> statesList = new LinkedList<>(stateInfos.values());
+        List<StateInfo<I, Boolean>> statesList = new LinkedList<>(stateInfos);
         for (int i = 0; i < statesList.size(); i++) {
             StateInfo<I, Boolean> newState = statesList.get(i);
             for (I sym : alphabet) {
@@ -274,7 +266,6 @@ public class IKearnsVaziraniDFA<I> extends KearnsVaziraniDFA<I> {
                             newhyp.addTransition(newState.id, sym, oldIds.get(transState).id);
                         } else {
                             Word<I> transAS = newState.accessSequence.append(sym);
-                            // TODO: Sifting can get expensive quite quickly.
                             int oldStateCount = stateInfos.size();
                             StateInfo<I, Boolean> newTransState = sift(Collections.singletonList(transAS), newhyp)
                                     .get(0);
@@ -302,13 +293,14 @@ public class IKearnsVaziraniDFA<I> extends KearnsVaziraniDFA<I> {
 
         hypothesis = newhyp;
 
-        for (StateInfo<I, Boolean> state : stateInfos.values()) {
-            state.clearIncoming();
+        for (StateInfo<I, Boolean> state : stateInfos) {
+            state.fetchIncoming(); // Clears incoming list as side effect
         }
 
-        for (StateInfo<I, Boolean> state : stateInfos.values()) {
+        for (StateInfo<I, Boolean> state : stateInfos) {
             for (I sym : alphabet) {
-                stateInfos.get(hypothesis.getTransition(state.id, sym)).addIncoming(state, sym);
+                int symIdx = alphabet.getSymbolIndex(sym);
+                stateInfos.get(hypothesis.getTransition(state.id, sym)).addIncoming(state.id, symIdx);
             }
         }
     }
@@ -317,7 +309,7 @@ public class IKearnsVaziraniDFA<I> extends KearnsVaziraniDFA<I> {
             LCAInfo<Boolean, AbstractWordBasedDTNode<I, Boolean, StateInfo<I, Boolean>>> separatorInfo) {
         int state = stateInfo.id;
         boolean oldAccepting = hypothesis.isAccepting(state);
-        Set<Pair<StateInfo<I, Boolean>, I>> oldIncoming = stateInfo.fetchIncoming();
+        List<Long> oldIncoming = stateInfo.fetchIncoming();
 
         StateInfo<I, Boolean> newStateInfo = createState(newPrefix, oldAccepting, hypothesis);
 
@@ -337,19 +329,30 @@ public class IKearnsVaziraniDFA<I> extends KearnsVaziraniDFA<I> {
         updateTransitions(oldIncoming, stateLeaf);
     }
 
-    private void updateTransitions(Set<Pair<StateInfo<I, Boolean>, I>> transSet,
+    private void updateTransitions(List<Long> transList,
             AbstractWordBasedDTNode<I, Boolean, StateInfo<I, Boolean>> oldDtTarget) {
+        int numTrans = transList.size();
+        final List<Word<I>> transAs = new ArrayList<>(numTrans);
 
-        List<Pair<StateInfo<I, Boolean>, I>> trans = new ArrayList<>(transSet);
-        final List<Word<I>> transAs = trans.stream().map(t -> t.getFirst().accessSequence.append(t.getSecond()))
-                .collect(Collectors.toList());
+        for (int i = 0; i < numTrans; i++) {
+            long encodedTrans = transList.get(i);
+            int sourceState = (int) (encodedTrans >> Integer.SIZE);
+            int transIdx = (int) (encodedTrans);
 
-        final List<StateInfo<I, Boolean>> succs = sift(Collections.nCopies(trans.size(), oldDtTarget), transAs,
+            StateInfo<I, Boolean> sourceInfo = stateInfos.get(sourceState);
+            I symbol = alphabet.getSymbol(transIdx);
+            transAs.add(sourceInfo.accessSequence.append(symbol));
+        }
+
+        final List<StateInfo<I, Boolean>> succs = sift(Collections.nCopies(numTrans, oldDtTarget), transAs,
                 hypothesis);
 
-        for (int i = 0; i < trans.size(); i++) {
-            Pair<StateInfo<I, Boolean>, I> t = trans.get(i);
-            setTransition(t.getFirst(), t.getSecond(), succs.get(i));
+        for (int i = 0; i < numTrans; i++) {
+            long encodedTrans = transList.get(i);
+            int sourceState = (int) (encodedTrans >> Integer.SIZE);
+            int transIdx = (int) (encodedTrans);
+
+            setTransition(sourceState, transIdx, succs.get(i));
         }
     }
 
@@ -362,7 +365,7 @@ public class IKearnsVaziraniDFA<I> extends KearnsVaziraniDFA<I> {
         StateInfo<I, Boolean> si = new StateInfo<>(state, accessSequence);
         // No longer true as old IDs may be removed.
         // assert stateInfos.size() == state;
-        stateInfos.put(si.id, si);
+        stateInfos.add(si);
 
         return si;
     }
@@ -382,13 +385,13 @@ public class IKearnsVaziraniDFA<I> extends KearnsVaziraniDFA<I> {
         final List<StateInfo<I, Boolean>> succs = sift(transAs, hypothesis);
 
         for (int i = 0; i < alphabetSize; i++) {
-            setTransition(stateInfo, alphabet.getSymbol(i), succs.get(i));
+            setTransition(stateInfo.id, i, succs.get(i));
         }
     }
 
-    private void setTransition(StateInfo<I, Boolean> state, I symbol, StateInfo<I, Boolean> succInfo) {
-        succInfo.addIncoming(state, symbol);
-        hypothesis.setTransition(state.id, alphabet.getSymbolIndex(symbol), succInfo.id);
+    private void setTransition(int state, int symIdx, StateInfo<I, Boolean> succInfo) {
+        succInfo.addIncoming(state, symIdx);
+        hypothesis.setTransition(state, symIdx, succInfo.id);
     }
 
     private List<StateInfo<I, Boolean>> sift(List<Word<I>> prefixes, CompactDFA<I> currentHyp) {
@@ -430,5 +433,17 @@ public class IKearnsVaziraniDFA<I> extends KearnsVaziraniDFA<I> {
         }
 
         return result;
+    }
+
+    protected MembershipOracle<I, Boolean> getOracle() {
+        try {
+            java.lang.reflect.Field field = KearnsVaziraniDFA.class.getDeclaredField("oracle");
+            field.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            MembershipOracle<I, Boolean> oracle = (MembershipOracle<I, Boolean>) field.get(this);
+            return oracle;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to access oracle field", e);
+        }
     }
 }

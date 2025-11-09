@@ -4,12 +4,13 @@ import br.usp.icmc.labes.mealyInference.utils.EquivEQOracle.WpMethodHypEQOracle;
 import br.usp.icmc.labes.mealyInference.utils.Infer_LearnLib;
 import br.usp.icmc.labes.mealyInference.utils.LearnLibProperties;
 import br.usp.icmc.labes.mealyInference.utils.Utils;
-import de.learnlib.algorithms.kv.KearnsVaziraniMealy;
-
+// import de.learnlib.algorithms.kv.KearnsVaziraniMealy;
+import de.learnlib.algorithms.kv.IKearnsVaziraniMealy;
 
 // import de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealy;
 
-import de.learnlib.algorithms.kv.KearnsVaziraniMealyBuilder;
+// import de.learnlib.algorithms.kv.KearnsVaziraniMealyBuilder;
+import de.learnlib.algorithms.kv.IKearnsVaziraniMealyBuilder;
 import de.learnlib.api.SUL;
 // import de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealyBuilder;
 //import net.automatalib.automata.transducers.impl.compact.CompactMealy;
@@ -826,7 +827,7 @@ private static int collectTreeInfo(
 	System.out.println();
 
 	// KearnsVaziraniMealy<MealyMachine<?, String, ?, Word<String>>, String, Word<String>> learner = null;											
-    KearnsVaziraniMealy<String, Word<String>> learner=null;
+    IKearnsVaziraniMealy<String, Word<String>> learner=null;
 	
 	// Declare adaptive statistics variables outside if/else so they're accessible later
 	StatisticSUL<String, Word<String>> mq_sym_adaptive = null;
@@ -846,11 +847,11 @@ if (i==0){
 	// Setup membership oracle 
 	MembershipOracle<String, Word<Word<String>>> mqOracle = new SULOracle<String, Word<String>>(mq_sul);
 	
-	KearnsVaziraniMealyBuilder<Object, String, Word<String>> builder = new KearnsVaziraniMealyBuilder<>();
+	IKearnsVaziraniMealyBuilder<Object, String, Word<String>> builder = new IKearnsVaziraniMealyBuilder<>();
 	builder.setOracle(mqOracle);
 	builder.setAlphabet(combinedAlphabet);
 	
-	learner = builder.withAlphabet(product1Alphabet).create(null,null);
+	learner = (IKearnsVaziraniMealy<String, Word<String>>) builder.withAlphabet(product1Alphabet).create(null,null);
 	System.out.println("Product " + i + ": Learning from scratch");
 	System.out.println("  Initial alphabet size = " + product1Alphabet.size());
 }
@@ -915,9 +916,9 @@ else{
 					// String cleanInput = input.trim();
 //****************************************************************************** */
 					
-System.out.println("  - Heyyyyyyyyyyyyyyyy: '" + input + "'");
-
-String cleanInput = input;
+					System.out.println("  - Heyyyyyyyyyyyyyyyy: '" + input + "'");
+									
+					String cleanInput = input;
 					int symbolIdx = extendedAlphabet.getSymbolIndex(cleanInput);
 					String canonicalSymbol = extendedAlphabet.getSymbol(symbolIdx);
 					mqMealy.addTransition(stateMap.get(state), canonicalSymbol, stateMap.get(succ), output);
@@ -966,7 +967,7 @@ String cleanInput = input;
 	SUL<String, Word<String>> mq_sul_adaptive = mq_rst_adaptive;
 	MembershipOracle<String, Word<Word<String>>> mqOracle = new SULOracle<String, Word<String>>(mq_sul_adaptive);
 	
-	KearnsVaziraniMealyBuilder<Object, String, Word<String>> builder = new KearnsVaziraniMealyBuilder<>();
+	IKearnsVaziraniMealyBuilder<Object, String, Word<String>> builder = new IKearnsVaziraniMealyBuilder<>();
 	builder.setOracle(mqOracle);
 	builder.setAlphabet(combinedAlphabet);
 	
@@ -1022,9 +1023,10 @@ String cleanInput = input;
 	System.out.println("  Tree StateInfo updated to match new hypothesis");
 	System.out.println("  Tree discriminators canonicalized to new alphabet");
 	
-	learner = builder.withAlphabet(extendedAlphabet).create(tree_round2, adaptedHypothesis);
+	learner = (IKearnsVaziraniMealy<String, Word<String>>) builder.withAlphabet(extendedAlphabet).create(tree_round2, adaptedHypothesis);
 	
 	System.out.println("  Learner created with alphabet size: " + learner.get_alphabet_symbol().size());
+	System.out.println("==================================================\n");
 	
 	// Visualize reused tree (only if tree was actually reused)
 	if (tree_round2 != null) {

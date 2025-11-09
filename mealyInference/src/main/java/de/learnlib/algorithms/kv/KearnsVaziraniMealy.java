@@ -75,13 +75,13 @@ import de.learnlib.algorithms.kv.KearnsVaziraniMealyState;
 public class KearnsVaziraniMealy<I, O>
         implements MealyLearner<I, O>, SupportsGrowingAlphabet<I>, Resumable<KearnsVaziraniMealyState<I, O>> {
 
-    private final Alphabet<I> alphabet;
+    public final Alphabet<I> alphabet;
     private final MembershipOracle<I, Word<O>> oracle;
     private final boolean repeatedCounterexampleEvaluation;
     private final AcexAnalyzer ceAnalyzer;
     protected MultiDTree<I, Word<O>, StateInfo<I, Word<O>>> discriminationTree;
     protected List<StateInfo<I, Word<O>>> stateInfos = new ArrayList<>();
-    private CompactMealy<I, O> hypothesis;
+    public CompactMealy<I, O> hypothesis;
 
     @GenerateBuilder
     public KearnsVaziraniMealy(Alphabet<I> alphabet,
@@ -324,7 +324,7 @@ public class KearnsVaziraniMealy<I, O>
         return stateInfo;
     }
 
-    private void populateStateInfosFromTree() {
+    public void populateStateInfosFromTree() {
         int numStates = hypothesis.size();
         // Initialize the list with the correct size, filled with null values
         stateInfos = new ArrayList<>(Collections.nCopies(numStates, null));

@@ -58,8 +58,8 @@ public class KearnsVaziraniDFA<I>
     protected final Alphabet<I> alphabet;
     private final MembershipOracle<I, Boolean> oracle;
     public final boolean repeatedCounterexampleEvaluation;
-    private final AcexAnalyzer ceAnalyzer;
     protected BinaryDTree<I, StateInfo<I, Boolean>> discriminationTree;
+    public final AcexAnalyzer ceAnalyzer;
     protected List<StateInfo<I, Boolean>> stateInfos = new ArrayList<>();
     protected CompactDFA<I> hypothesis;
 
