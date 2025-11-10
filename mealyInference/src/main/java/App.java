@@ -390,8 +390,8 @@ public class App {
         System.out.println("\n========== PRODUCT LEARNING COMPLETED (NORMAL APPROACH) ==========");
         System.out.println("Final hypothesis states: " + experiment.getFinalHypothesis().getStates().size());
         System.out.println("Rounds (EQ queries): " + experiment.getRounds().getCount());
-        System.out.println("Membership queries - Resets: " + ExtractValue(mqRst.getStatisticalData().getSummary()));
-        System.out.println("Membership queries - Symbols: " + ExtractValue(mqSym.getStatisticalData().getSummary()));
+        System.out.println("Membership queries - Resets: " + ExtractValue(mq_rst.getStatisticalData().getSummary()));
+        System.out.println("Membership queries - Symbols: " + ExtractValue(mq_sym.getStatisticalData().getSummary()));
         System.out.println("Equivalence queries - Resets: " + ExtractValue(eq_rst.getStatisticalData().getSummary()));
         System.out.println("Equivalence queries - Symbols: " + ExtractValue(eq_sym.getStatisticalData().getSummary()));
         System.out.println("*** NORMAL LEARNING (NO REUSE) ***");
@@ -401,8 +401,8 @@ public class App {
         
         // Store statistics for comparison
         productStats[productIndex][0] = experiment.getRounds().getCount(); // Rounds
-        productStats[productIndex][1] = ExtractValue(mqRst.getStatisticalData().getSummary()); // MQ Resets
-        productStats[productIndex][2] = ExtractValue(mqSym.getStatisticalData().getSummary()); // MQ Symbols
+        productStats[productIndex][1] = ExtractValue(mq_rst.getStatisticalData().getSummary()); // MQ Resets
+        productStats[productIndex][2] = ExtractValue(mq_sym.getStatisticalData().getSummary()); // MQ Symbols
         productStats[productIndex][3] = ExtractValue(eq_rst.getStatisticalData().getSummary()); // EQ Resets
         productStats[productIndex][4] = ExtractValue(eq_sym.getStatisticalData().getSummary()); // EQ Symbols
         productStates[productIndex] = experiment.getFinalHypothesis().getStates().size();
