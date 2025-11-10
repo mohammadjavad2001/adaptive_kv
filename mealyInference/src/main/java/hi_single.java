@@ -19,6 +19,7 @@ import de.learnlib.api.logging.LearnLogger;
 // import de.learnlib.ds.EquivalenceOracle;
 import de.learnlib.api.oracle.EquivalenceOracle;
 import de.learnlib.api.oracle.MembershipOracle;
+import de.learnlib.api.query.Query;
 
 // import de.learnlib.ds.MembershipOracle;
 import de.learnlib.api.statistic.StatisticSUL;
@@ -98,6 +99,7 @@ import net.automatalib.words.impl.Alphabets;
 import net.automatalib.words.GrowingAlphabet;
 import net.automatalib.words.impl.GrowingMapAlphabet;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import net.automatalib.words.Alphabet;
 import net.automatalib.graphs.concepts.GraphViewable;
 import net.automatalib.visualization.Visualization;
@@ -113,6 +115,89 @@ import net.automatalib.graphs.concepts.GraphViewable;
 import de.learnlib.ds.JointCounterOracle;
 import de.learnlib.filter.statistic.oracle.CounterSymbolQueryOracle;
 
+/**
+ * Cached Membership Oracle for reusing query results and reducing duplicate queries.
+ * This significantly improves performance in adaptive learning scenarios.
+ * 
+ * CRITICAL: Cache key uses Pair(prefix, suffix) NOT concat(prefix, suffix)
+ * because answerQuery(prefix, suffix) returns different output than answerQuery(concat)
+ */
+class CachedMembershipOracle<I, O> implements MembershipOracle<I, O> {
+    private final MembershipOracle<I, O> delegate;
+    // Use Pair<prefix, suffix> as cache key to correctly distinguish queries
+    private final Map<Pair<Word<I>, Word<I>>, O> cache;
+    private int cacheHits = 0;
+    private int cacheMisses = 0;
+    
+    public CachedMembershipOracle(MembershipOracle<I, O> delegate) {
+        this.delegate = delegate;
+        this.cache = new ConcurrentHashMap<>();
+    }
+    
+    @Override
+    public O answerQuery(Word<I> prefix, Word<I> suffix) {
+        // CRITICAL FIX: Use Pair(prefix, suffix) as cache key
+        // answerQuery("a", "b") != answerQuery("", "ab") in Mealy machines!
+        Pair<Word<I>, Word<I>> cacheKey = Pair.of(prefix, suffix);
+        
+        // Check cache first
+        if (cache.containsKey(cacheKey)) {
+            cacheHits++;
+            return cache.get(cacheKey);
+        }
+        
+        // Cache miss - query the delegate oracle
+        cacheMisses++;
+        O result = delegate.answerQuery(prefix, suffix);
+        cache.put(cacheKey, result);
+        return result;
+    }
+    
+	@Override
+	public O answerQuery(Word<I> query) {
+		// For single word query, prefix is empty (epsilon)
+		return answerQuery(Word.epsilon(), query);
+	}
+	
+	@Override
+	public void processQueries(Collection<? extends de.learnlib.api.query.Query<I, O>> queries) {
+		for (de.learnlib.api.query.Query<I, O> query : queries) {
+			O answer = answerQuery(query.getPrefix(), query.getSuffix());
+			query.answer(answer);
+		}
+	}
+	
+	public void printStatistics() {
+        int totalQueries = cacheHits + cacheMisses;
+        System.out.println("\n╔════════════════════════════════════════════════════════╗");
+        System.out.println("║              CACHE STATISTICS                          ║");
+        System.out.println("╠════════════════════════════════════════════════════════╣");
+        System.out.println("║  Total Queries:    " + String.format("%-30d", totalQueries) + "║");
+        System.out.println("║  Cache Hits:       " + String.format("%-30d", cacheHits) + "║");
+        System.out.println("║  Cache Misses:     " + String.format("%-30d", cacheMisses) + "║");
+        System.out.println("║  Cache Size:       " + String.format("%-30d", cache.size()) + "║");
+        if (totalQueries > 0) {
+            double hitRate = (cacheHits * 100.0) / totalQueries;
+            System.out.println("║  Hit Rate:         " + String.format("%-29.2f%%", hitRate) + "║");
+            System.out.println("║  Resets Saved:     " + String.format("%-30d", cacheHits) + "║");
+        }
+        System.out.println("╚════════════════════════════════════════════════════════╝\n");
+    }
+    
+    public int getCacheHits() {
+        return cacheHits;
+    }
+    
+    public int getCacheMisses() {
+        return cacheMisses;
+    }
+    
+    public void clearCache() {
+        cache.clear();
+        cacheHits = 0;
+        cacheMisses = 0;
+    }
+}
 
 public class hi_single<
          I extends java.lang.Object,
@@ -127,6 +212,8 @@ public class hi_single<
 	private static Alphabet<String> product1Alphabet = null;
 	// Store previous product's hypothesis
 	private static CompactMealy<String, Word<String>> previousHypothesis = null;
+	// Store cached oracle for statistics
+	private static CachedMembershipOracle<String, Word<Word<String>>> cachedOracle = null;
 
 	private static int ExtractValue(String string_1) {
 		// TODO Auto-generated method stub
@@ -967,6 +1054,13 @@ else{
 	SUL<String, Word<String>> mq_sul_adaptive = mq_rst_adaptive;
 	MembershipOracle<String, Word<Word<String>>> mqOracle = new SULOracle<String, Word<String>>(mq_sul_adaptive);
 	
+	// 🔥 Enable Cache Layer for Product 1+ to reduce duplicate queries
+	if (i > 0) {
+		cachedOracle = new CachedMembershipOracle<>(mqOracle);
+		mqOracle = cachedOracle;
+		System.out.println("✓ Cache layer enabled for Product " + i + " - duplicate queries will be avoided");
+	}
+	
 	IKearnsVaziraniMealyBuilder<Object, String, Word<String>> builder = new IKearnsVaziraniMealyBuilder<>();
 	builder.setOracle(mqOracle);
 	builder.setAlphabet(combinedAlphabet);
@@ -1252,6 +1346,11 @@ else{
 		System.out.println("*** ADAPTIVE LEARNING BENEFIT ***");
 		System.out.println("  Reused tree from product " + (i-1));
 		System.out.println("  Alphabet extended: " + (learner.get_alphabet_symbol().size() - productAlphabet.size()) + " symbols");
+		
+		// Display cache statistics
+		if (cachedOracle != null) {
+			cachedOracle.printStatistics();
+		}
 	}
 	System.out.println("====================================================\n");
 	
@@ -1385,6 +1484,13 @@ else{
 	System.out.println("  Alphabet: " + productAlphabetSizes[1] + " symbols (" + productAlphabetSizes[0] + " + " + newSymbolsAdded[1] + " new)");
 	System.out.println("  ✓ Tree reused from product 0");
 	System.out.println("  ✓ " + newSymbolsAdded[1] + " new symbols added");
+	if (cachedOracle != null) {
+		int totalCacheQueries = cachedOracle.getCacheHits() + cachedOracle.getCacheMisses();
+		if (totalCacheQueries > 0) {
+			double hitRate = (cachedOracle.getCacheHits() * 100.0) / totalCacheQueries;
+			System.out.println("  ✓ Cache enabled: " + cachedOracle.getCacheHits() + " resets saved (" + String.format("%.1f%%", hitRate) + " hit rate)");
+		}
+	}
 	System.out.println();
 	
 	System.out.println("════════════════════════════════════════════════════════════════");

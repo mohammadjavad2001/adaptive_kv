@@ -7,7 +7,6 @@ import br.usp.icmc.labes.mealyInference.utils.Utils;
 import de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealy;
 import de.learnlib.algorithms.kv.mealy.KearnsVaziraniMealyBuilder;
 import de.learnlib.api.SUL;
-
 import de.learnlib.api.logging.LearnLogger;
 import de.learnlib.api.oracle.EquivalenceOracle;
 import de.learnlib.api.oracle.MembershipOracle;
@@ -60,9 +59,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.automatalib.words.WordBuilder;
 import net.automatalib.words.impl.Alphabets;
-
 import java.util.*;
 import net.automatalib.words.Alphabet;
+
 
 public class App {
 
@@ -365,9 +364,7 @@ public class App {
         MealySimulatorSUL<String, Word<String>> sul = new MealySimulatorSUL<>(mealyMachine);
         EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = null;
         eqOracle = buildEqOracle(rnd_seed, line, mealyMachine, eq_sul);
-        // Set up membership oracle with counters
-        SymbolCounterSUL<String, Word<String>> mqSym = new SymbolCounterSUL<>("MQ", sul);
-        ResetCounterSUL<String, Word<String>> mqRst = new ResetCounterSUL<>("MQ", mqSym);
+        // Set up membership oracle with counters (using mq_sul which has counters wrapped)
         MembershipOracle<String, Word<Word<String>>> mqOracle = new SULOracle<String, Word<String>>(mq_sul);
 
         KearnsVaziraniMealyBuilder<String, Word<String>> builder=new KearnsVaziraniMealyBuilder<String, Word<String>>();
@@ -390,8 +387,8 @@ public class App {
         System.out.println("\n========== PRODUCT LEARNING COMPLETED (NORMAL APPROACH) ==========");
         System.out.println("Final hypothesis states: " + experiment.getFinalHypothesis().getStates().size());
         System.out.println("Rounds (EQ queries): " + experiment.getRounds().getCount());
-        System.out.println("Membership queries - Resets: " + ExtractValue(mqRst.getStatisticalData().getSummary()));
-        System.out.println("Membership queries - Symbols: " + ExtractValue(mqSym.getStatisticalData().getSummary()));
+        System.out.println("Membership queries - Resets: " + ExtractValue(mq_rst.getStatisticalData().getSummary()));
+        System.out.println("Membership queries - Symbols: " + ExtractValue(mq_sym.getStatisticalData().getSummary()));
         System.out.println("Equivalence queries - Resets: " + ExtractValue(eq_rst.getStatisticalData().getSummary()));
         System.out.println("Equivalence queries - Symbols: " + ExtractValue(eq_sym.getStatisticalData().getSummary()));
         System.out.println("*** NORMAL LEARNING (NO REUSE) ***");
@@ -401,8 +398,8 @@ public class App {
         
         // Store statistics for comparison
         productStats[productIndex][0] = experiment.getRounds().getCount(); // Rounds
-        productStats[productIndex][1] = ExtractValue(mqRst.getStatisticalData().getSummary()); // MQ Resets
-        productStats[productIndex][2] = ExtractValue(mqSym.getStatisticalData().getSummary()); // MQ Symbols
+        productStats[productIndex][1] = ExtractValue(mq_rst.getStatisticalData().getSummary()); // MQ Resets
+        productStats[productIndex][2] = ExtractValue(mq_sym.getStatisticalData().getSummary()); // MQ Symbols
         productStats[productIndex][3] = ExtractValue(eq_rst.getStatisticalData().getSummary()); // EQ Resets
         productStats[productIndex][4] = ExtractValue(eq_sym.getStatisticalData().getSummary()); // EQ Symbols
         productStates[productIndex] = experiment.getFinalHypothesis().getStates().size();
