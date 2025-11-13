@@ -71,8 +71,6 @@ public class Experiment<A extends Object> {
                              EquivalenceOracle<? super A, I, D> equivalenceAlgorithm,
                              Alphabet<I> inputs) {
         this.impl = new ExperimentImpl<>(learningAlgorithm, equivalenceAlgorithm, inputs);
-        
-        System.out.println("dddddddddddddddddd"+impl.inputs);
     }
     public MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> getDiscrtree() {
         return discrtree;
@@ -165,12 +163,8 @@ public class Experiment<A extends Object> {
                 
                 if (rounds.getCount()==1 && hyp_starter != null){
                     hyp = hyp_starter;
-                    System.out.println("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEJJJJJJJJJJJ");
- 
-
                 }
                 else{
-                    System.out.println("KKKKKKKKKK");
                 hyp = learningAlgorithm.getHypothesisModel();
                 // visualize FSM using its graph view, matching Visualization API
                 // Visualization.visualize(((GraphViewable) hyp).graphView(), true);
@@ -187,7 +181,6 @@ public class Experiment<A extends Object> {
                     // Create a DEEP COPY of the tree at round 2
                     MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = kvLearner.getDiscriminationTree();
                     setDiscrtree(tree_round2);
-                    System.out.println("PPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPP");
                     return hyp;
 
                     // MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = 
@@ -199,9 +192,7 @@ public class Experiment<A extends Object> {
                     // System.out.println("========================================================");
                 }
                 MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree = kvLearner.getDiscriminationTree();
-                System.out.println("this is tree of round "+rounds.getCount());
                 Visualization.visualize(tree, true);
-                System.out.println("this is hypothesis of round "+rounds.getCount());
                 Visualization.visualize(((GraphViewable) hyp).graphView(), true);
                 if (logModels) {
                     LOGGER.logModel(hyp);
@@ -210,11 +201,9 @@ public class Experiment<A extends Object> {
                 LOGGER.logPhase("Searching for counterexample");
                 System.out.println("Searching for counterexample");
                 profileStart(COUNTEREXAMPLE_PROFILE_KEY);
-                System.out.println("herreeee inputssss"+inputs);
                 DefaultQuery<I, D> ce = equivalenceAlgorithm.findCounterExample(hyp, inputs);
                 profileStop(COUNTEREXAMPLE_PROFILE_KEY);
                 if(getDiscrtree()!=null){
-                System.out.println("THIS IS TREEE SAVEDDDDDDDDDDDDDDDDDD");
                 Visualization.visualize(getDiscrtree(), true);
                 }
                 if (ce == null) {
@@ -227,8 +216,6 @@ public class Experiment<A extends Object> {
 
                 // next round ...
                 rounds.increment();
-                System.out.println("ROUNDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD");
-                System.out.println(rounds.getCount());
                 LOGGER.logPhase("Starting round " + rounds.getCount());
                 System.out.println("Starting round " + rounds.getCount());
                 

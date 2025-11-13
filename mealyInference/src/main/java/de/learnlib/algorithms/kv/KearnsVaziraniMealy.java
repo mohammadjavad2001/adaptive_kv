@@ -392,17 +392,6 @@ public class KearnsVaziraniMealy<I, O>
         hypothesis.setTransition(state, symIdx, succInfo.id, output);
     }
     
-    /**
-     * Helper method to repeat a string (Java 8 compatibility)
-     */
-    private String repeatString(String str, int count) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < count; i++) {
-            sb.append(str);
-        }
-        return sb.toString();
-    }
-
     private List<StateInfo<I, Word<O>>> sift(List<Word<I>> prefixes) {
         return sift(Collections.nCopies(prefixes.size(), discriminationTree.getRoot()), prefixes);
     }
@@ -410,66 +399,6 @@ public class KearnsVaziraniMealy<I, O>
     private List<StateInfo<I, Word<O>>> sift(List<AbstractWordBasedDTNode<I, Word<O>, StateInfo<I, Word<O>>>> starts,
                                              List<Word<I>> prefixes) {
 
-        // Detailed analysis of what prefixes contain
-        System.out.println("\n" + repeatString("=", 80));
-        System.out.println("PREFIX ANALYSIS - SIFT METHOD");
-        System.out.println(repeatString("=", 80));
-        System.out.println("Total number of prefixes: " + prefixes.size());
-        System.out.println();
-        
-        for (int i = 0; i < prefixes.size(); i++) {
-            Word<I> prefix = prefixes.get(i);
-            System.out.println("Prefix " + (i + 1) + ":");
-            System.out.println("  - Length: " + prefix.length());
-            System.out.println("  - Content: " + prefix);
-            System.out.println("  - Is empty: " + prefix.isEmpty());
-            System.out.println("  - String representation: '" + prefix.toString() + "'");
-            
-            // Show individual symbols
-            if (!prefix.isEmpty()) {
-                System.out.println("  - Individual symbols:");
-                for (int j = 0; j < prefix.length(); j++) {
-                    I symbol = prefix.getSymbol(j);
-                    System.out.println("    [" + j + "] = " + symbol + " (type: " + symbol.getClass().getSimpleName() + ")");
-                }
-            }
-            System.out.println();
-        }
-        
-        // Summary statistics
-        int totalSymbols = 0;
-        int emptyPrefixes = 0;
-        int maxLength = 0;
-        int minLength = Integer.MAX_VALUE;
-        
-        for (Word<I> prefix : prefixes) {
-            int len = prefix.length();
-            totalSymbols += len;
-            if (len == 0) emptyPrefixes++;
-            if (len > maxLength) maxLength = len;
-            if (len < minLength) minLength = len;
-        }
-        
-        if (prefixes.isEmpty()) {
-            minLength = 0;
-        }
-        
-        System.out.println("SUMMARY STATISTICS:");
-        System.out.println("  - Total symbols across all prefixes: " + totalSymbols);
-        System.out.println("  - Empty prefixes: " + emptyPrefixes);
-        System.out.println("  - Maximum prefix length: " + maxLength);
-        System.out.println("  - Minimum prefix length: " + minLength);
-        System.out.println("  - Average prefix length: " + (prefixes.isEmpty() ? 0 : (double) totalSymbols / prefixes.size()));
-        
-        System.out.println("\nWHAT ARE PREFIXES?");
-        System.out.println("In the Kearns-Vazirani algorithm, 'prefixes' represent:");
-        System.out.println("1. Access sequences to states in the hypothesis automaton");
-        System.out.println("2. Input words that lead to specific states");
-        System.out.println("3. The 'path' through the automaton to reach each state");
-        System.out.println("4. Used by sift() method to navigate the discrimination tree");
-        System.out.println(repeatString("=", 80) + "\n");
-        
-        System.out.println("===================================================>"+prefixes);
         final List<AbstractWordBasedDTNode<I, Word<O>, StateInfo<I, Word<O>>>> leaves =
                 discriminationTree.sift(starts, prefixes);
         final List<StateInfo<I, Word<O>>> result = new ArrayList<>(leaves.size());
@@ -588,20 +517,11 @@ public class KearnsVaziraniMealy<I, O>
             System.out.println("\n=== KVAbstractCounterexample: Processing ceWord ===");
             System.out.println("ceWord length: " + m);
             System.out.println("ceWord: " + ceWord);
-            System.out.println("Hypothesis alphabet size: " + alphabet.size());
-            System.out.println("Processing symbols:");
-            
             for (I sym : ceWord) {
-                System.out.println("  Symbol: '" + sym + "' (hash=" + System.identityHashCode(sym) + ")");
-                System.out.println("  Current state: " + currState);
-                
                 try {
                     // Check if symbol is in alphabet
                     int symIdx = alphabet.getSymbolIndex(sym);
-                    System.out.println("  Symbol index in alphabet: " + symIdx);
-                    
                     currState = hypothesis.getSuccessor(currState, sym);
-                    System.out.println("  Next state: " + currState);
                     states[i++] = stateInfos.get(currState);
                 } catch (IllegalArgumentException e) {
                     System.err.println("  ERROR: Symbol '" + sym + "' not found in alphabet!");
@@ -612,7 +532,6 @@ public class KearnsVaziraniMealy<I, O>
                     throw e;
                 }
             }
-            System.out.println("=== KVAbstractCounterexample: Done ===\n");
 
             // Output of last transition separates hypothesis from target
             O lastHypOut = hypothesis.getOutput(states[m - 1].id, ceWord.lastSymbol());
@@ -630,12 +549,8 @@ public class KearnsVaziraniMealy<I, O>
 
         @Override
         protected Boolean computeEffect(int index) {
-            System.out.println("\n=== computeEffect: index=" + index + " ===");
             Word<I> prefix = ceWord.prefix(index);
-            System.out.println("Prefix: " + prefix + " (length=" + prefix.length() + ")");
-            
             StateInfo<I, Word<O>> info = states[index];
-            System.out.println("StateInfo: " + (info != null ? info.id : "null"));
 
             // Save the expected outcomes on the path from the leaf representing the state
             // to the root on a stack
@@ -647,32 +562,16 @@ public class KearnsVaziraniMealy<I, O>
                 expect.push(parentOutcome);
                 node = node.getParent();
             }
-            System.out.println("Expected outcomes collected: " + expect.size());
 
             AbstractWordBasedDTNode<I, Word<O>, StateInfo<I, Word<O>>> currNode = discriminationTree.getRoot();
 
-            int queryCount = 0;
             while (!expect.isEmpty()) {
                 Word<I> suffix = currNode.getDiscriminator();
-                System.out.println("  Query " + (++queryCount) + ": prefix=" + prefix + ", suffix=" + suffix);
-                System.out.println("    Prefix symbols:");
-                for (int i = 0; i < prefix.length(); i++) {
-                    I sym = prefix.getSymbol(i);
-                    System.out.println("      [" + i + "] '" + sym + "' (hash=" + System.identityHashCode(sym) + ")");
-                }
-                System.out.println("    Suffix symbols:");
-                for (int i = 0; i < suffix.length(); i++) {
-                    I sym = suffix.getSymbol(i);
-                    System.out.println("      [" + i + "] '" + sym + "' (hash=" + System.identityHashCode(sym) + ")");
-                }
-                
                 try {
                     Word<O> out = oracle.answerQuery(prefix, suffix);
-                    System.out.println("    Result: " + out);
                     Word<O> e = expect.pop();
                     if (!Objects.equals(out, e)) {
                         lcas[index] = new LCAInfo<>(currNode, e, out);
-                        System.out.println("  Mismatch found, returning false");
                         return false;
                     }
                     currNode = currNode.child(out);
@@ -683,7 +582,6 @@ public class KearnsVaziraniMealy<I, O>
                 }
             }
 
-            System.out.println("=== computeEffect: returning true ===\n");
             assert currNode.isLeaf() && expect.isEmpty();
             return true;
         }
