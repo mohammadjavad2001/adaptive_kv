@@ -1368,7 +1368,7 @@ else{
 	System.out.println();
 	
 	// Product 0 Results
-	System.out.println("Product 0:");
+	System.out.println("Product 0:"+a213[0]);
 	System.out.println("  Rounds: " + productStats[0][0]);
 	System.out.println("  MQ Resets: " + productStats[0][1] + ", Symbols: " + productStats[0][2]);
 	System.out.println("  EQ Resets: " + productStats[0][3] + ", Symbols: " + productStats[0][4]);
@@ -1377,7 +1377,7 @@ else{
 	System.out.println();
 	
 	// Product 1 Results
-	System.out.println("Product 1 (Adaptive):");
+	System.out.println("Product 1 (Adaptive):"+a213[1]);
 	System.out.println("  Rounds: " + productStats[1][0]);
 	System.out.println("  MQ Resets: " + productStats[1][1] + ", Symbols: " + productStats[1][2]);
 	System.out.println("  EQ Resets: " + productStats[1][3] + ", Symbols: " + productStats[1][4]);

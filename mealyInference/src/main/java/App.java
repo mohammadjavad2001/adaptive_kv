@@ -316,9 +316,8 @@ public class App {
 //             System.exit(1);
 //         }
 
-// String[] a213={"00001_fsm.dot","00004_fsm.dot"};
 
-        File productFile_2 = new File(".\\alternative_experiments\\Minepump_SPL\\products_3wise", "00002_fsm.dot");
+        File productFile_2 = new File(".\\alternative_experiments\\Minepump_SPL\\products_3wise", "00005_fsm.dot");
         System.out.print("Fvvvvvv");
         CompactMealy<String, Word<String>> mealyMachine = null;
 		try {
