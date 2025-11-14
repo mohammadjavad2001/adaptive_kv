@@ -111,6 +111,7 @@ public class Experiment1<A extends Object> {
         private final LearningAlgorithm<? extends A, I, D> learningAlgorithm;
         private final EquivalenceOracle<? super A, I, D> equivalenceAlgorithm;
         private final Alphabet<I> inputs;
+        private boolean hasShownFirstTree = false;
 
         ExperimentImpl(LearningAlgorithm<? extends A, I, D> learningAlgorithm,
                        EquivalenceOracle<? super A, I, D> equivalenceAlgorithm,
@@ -123,6 +124,7 @@ public class Experiment1<A extends Object> {
         public A run() {
             rounds.increment();
             LOGGER.logPhase("Starting round " + rounds.getCount());
+            System.out.println("Starting round " + rounds.getCount());
             LOGGER.logPhase("Learning");
 
             profileStart(LEARNING_PROFILE_KEY);
@@ -132,6 +134,7 @@ public class Experiment1<A extends Object> {
             while (true) {
                 final A hyp = learningAlgorithm.getHypothesisModel();
                 KearnsVaziraniMealy<String, Word<String>> kvLearner = (KearnsVaziraniMealy<String, Word<String>>) learningAlgorithm;
+                MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree = kvLearner.getDiscriminationTree();
 
                 if (logModels) {
                     LOGGER.logModel(hyp);
@@ -142,11 +145,22 @@ public class Experiment1<A extends Object> {
                 profileStart(COUNTEREXAMPLE_PROFILE_KEY);
                 DefaultQuery<I, D> ce = equivalenceAlgorithm.findCounterExample(hyp, inputs);
                 profileStop(COUNTEREXAMPLE_PROFILE_KEY);
-                MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree = kvLearner.getDiscriminationTree();
-                System.out.println("Starting round " + rounds.getCount());
-                
-                Visualization.visualize(tree, true);
+
+                // Show first tree and hypothesis
+                if (!hasShownFirstTree) {
+                    System.out.println("First tree (round " + rounds.getCount() + "):");
+                    Visualization.visualize(tree, true);
+                    System.out.println("First hypothesis (round " + rounds.getCount() + "):");
+                    Visualization.visualize(((net.automatalib.graphs.concepts.GraphViewable) hyp).graphView(), true);
+                    hasShownFirstTree = true;
+                }
+
                 if (ce == null) {
+                    // Show final tree and hypothesis
+                    System.out.println("Final tree (round " + rounds.getCount() + "):");
+                    Visualization.visualize(tree, true);
+                    System.out.println("Final hypothesis (round " + rounds.getCount() + "):");
+                    Visualization.visualize(((net.automatalib.graphs.concepts.GraphViewable) hyp).graphView(), true);
                     return hyp;
                 }
 
@@ -155,6 +169,7 @@ public class Experiment1<A extends Object> {
                 // next round ...
                 rounds.increment();
                 LOGGER.logPhase("Starting round " + rounds.getCount());
+                System.out.println("Starting round " + rounds.getCount());
                 LOGGER.logPhase("Learning");
 
                 profileStart(LEARNING_PROFILE_KEY);

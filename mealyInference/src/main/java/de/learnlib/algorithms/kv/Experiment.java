@@ -137,6 +137,8 @@ public class Experiment<A extends Object> {
         private final LearningAlgorithm<? extends A, I, D> learningAlgorithm;
         private final EquivalenceOracle<? super A, I, D> equivalenceAlgorithm;
         protected final Alphabet<I> inputs;
+        private boolean initialVisualizationShown;
+        private boolean finalVisualizationShown;
 
         ExperimentImpl(LearningAlgorithm<? extends A, I, D> learningAlgorithm,
                        EquivalenceOracle<? super A, I, D> equivalenceAlgorithm,
@@ -147,6 +149,8 @@ public class Experiment<A extends Object> {
         }
 
         public A run(boolean first, @Nullable A hyp_starter) {
+            initialVisualizationShown = false;
+            finalVisualizationShown = false;
             rounds.increment();
             LOGGER.logPhase("Starting round " + rounds.getCount());
             System.out.println("Starting round " + rounds.getCount());
@@ -181,6 +185,7 @@ public class Experiment<A extends Object> {
                     // Create a DEEP COPY of the tree at round 2
                     MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = kvLearner.getDiscriminationTree();
                     setDiscrtree(tree_round2);
+                    showFinalVisualization(kvLearner, hyp);
                     return hyp;
 
                     // MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = 
@@ -192,8 +197,12 @@ public class Experiment<A extends Object> {
                     // System.out.println("========================================================");
                 }
                 MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree = kvLearner.getDiscriminationTree();
-                Visualization.visualize(tree, true);
-                Visualization.visualize(((GraphViewable) hyp).graphView(), true);
+                if (!initialVisualizationShown) {
+                    System.out.println("Visualizing first discrimination tree and hypothesis for this product.");
+                    Visualization.visualize(tree, true);
+                    Visualization.visualize(((GraphViewable) hyp).graphView(), true);
+                    initialVisualizationShown = true;
+                }
                 if (logModels) {
                     LOGGER.logModel(hyp);
                 }
@@ -204,9 +213,9 @@ public class Experiment<A extends Object> {
                 DefaultQuery<I, D> ce = equivalenceAlgorithm.findCounterExample(hyp, inputs);
                 profileStop(COUNTEREXAMPLE_PROFILE_KEY);
                 if(getDiscrtree()!=null){
-                Visualization.visualize(getDiscrtree(), true);
                 }
                 if (ce == null) {
+                    showFinalVisualization(kvLearner, hyp);
                     System.out.println("=============================Learned model is equivalent to the original model=========================");
                     
                     return hyp;
@@ -227,6 +236,16 @@ public class Experiment<A extends Object> {
 
                 assert refined;
             }
+        }
+        private void showFinalVisualization(KearnsVaziraniMealy<String, Word<String>> kvLearner, A hyp) {
+            if (finalVisualizationShown) {
+                return;
+            }
+            System.out.println("Visualizing final discrimination tree and hypothesis for this product.");
+            MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> finalTree = kvLearner.getDiscriminationTree();
+            Visualization.visualize(finalTree, true);
+            Visualization.visualize(((GraphViewable) hyp).graphView(), true);
+            finalVisualizationShown = true;
         }
     }
 

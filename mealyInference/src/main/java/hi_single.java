@@ -257,15 +257,32 @@ private static void updateStateInfoInTree(
 		return;
 	}
 	
-    if (node.isLeaf()) {
-        // Cannot mutate final field 'id' in StateInfo; rely on 'stateMap' externally instead
-        // Intentionally no-op here to avoid assigning to a final field
-    } else {
-		// Recursively update StateInfo in all child nodes
-		Collection<Map.Entry<Word<Word<String>>, AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>>> children = node.getChildEntries();
-		for (Map.Entry<Word<Word<String>>, AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>> entry : children) {
-			updateStateInfoInTree(entry.getValue(), stateMap);
+	if (node.isLeaf()) {
+		// Update StateInfo ID if this is a leaf node
+		StateInfo<String, Word<Word<String>>> stateInfo = node.getData();
+		if (stateInfo != null && stateMap != null) {
+			Integer oldId = stateInfo.id;
+			Integer newId = stateMap.get(oldId);
+			if (newId != null && !newId.equals(oldId)) {
+				// Update ID using reflection (since 'id' is a final field)
+				try {
+					java.lang.reflect.Field idField = StateInfo.class.getDeclaredField("id");
+					idField.setAccessible(true);
+					idField.set(stateInfo, newId);
+					System.out.println("    Updated StateInfo ID: " + oldId + " → " + newId);
+				} catch (Exception e) {
+					System.err.println("    ERROR: Could not update StateInfo ID from " + oldId + " to " + newId + ": " + e.getMessage());
+					e.printStackTrace();
+				}
+			}
 		}
+		return;
+	}
+	
+	// Recursively update StateInfo in all child nodes
+	Collection<Map.Entry<Word<Word<String>>, AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>>> children = node.getChildEntries();
+	for (Map.Entry<Word<Word<String>>, AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>> entry : children) {
+		updateStateInfoInTree(entry.getValue(), stateMap);
 	}
 }
 
@@ -858,7 +875,7 @@ if (i==0){
 
 else{
 	// ========== PRODUCT i: Incremental Adaptive Learning ==========
-	System.out.println("Product " + i + ": Incremental adaptive learning");
+	System.out.println("Product " + i + ": adaptive learning");
 	System.out.println("  Previous alphabet size: " + product1Alphabet.size());
 	System.out.println("  Current product alphabet size: " + productAlphabet.size());
 	
