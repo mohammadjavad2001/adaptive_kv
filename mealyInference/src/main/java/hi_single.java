@@ -127,6 +127,11 @@ public class hi_single<
 	private static Alphabet<String> product1Alphabet = null;
 	// Store previous product's hypothesis
 	private static CompactMealy<String, Word<String>> previousHypothesis = null;
+	
+	// Store previously learned products for smart EQ oracle
+	private static List<MealyMachine<?, String, ?, Word<String>>> previousLearnedProducts = new ArrayList<>();
+	// Track symbols from previous products
+	private static Set<String> previousProductSymbols = new HashSet<>();
 
 	private static int ExtractValue(String string_1) {
 		// TODO Auto-generated method stub
@@ -743,6 +748,50 @@ private static int collectTreeInfo(
 
         return eqOracle;
     }
+	
+	/**
+	 * Build Hybrid Adaptive EQ Oracle for products after the first one
+	 * Uses smart testing first, then falls back to exhaustive WpMethod
+	 */
+	private static EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> buildHybridAdaptiveEqOracle(
+			Random rnd_seed, 
+			Alphabet<String> currentAlphabet,
+			Set<String> newSymbols,
+			SUL<String, Word<String>> eq_sul) {
+		
+		MembershipOracle<String, Word<Word<String>>> oracleForEQoracle = new SULOracle<>(eq_sul);
+		
+		// Smart oracle parameters - fast, targeted testing
+		int smartMaxTests = 3000;   // Test targeted sequences
+		int smartMinLength = 1;     // Minimum sequence length
+		int smartMaxLength = 15;    // Maximum sequence length
+		
+		// WpMethod parameters - exhaustive fallback
+		int wpLookahead = 2;        // Standard WpMethod lookahead
+		
+		System.out.println("\n========== CREATING HYBRID ADAPTIVE EQ ORACLE ==========");
+		System.out.println("Previous products available: " + previousLearnedProducts.size());
+		System.out.println("New symbols in current product: " + newSymbols.size());
+		System.out.println("Current alphabet size: " + currentAlphabet.size());
+		System.out.println("========================================================");
+		System.out.println("Phase 1 - Smart: " + smartMaxTests + " tests, length " + smartMinLength + "-" + smartMaxLength);
+		System.out.println("Phase 2 - WpMethod: lookahead=" + wpLookahead + " (exhaustive)");
+		System.out.println("========================================================\n");
+		
+		HybridAdaptiveEQOracle<String, Word<String>> hybridOracle = new HybridAdaptiveEQOracle<>(
+			oracleForEQoracle,
+			previousLearnedProducts,
+			currentAlphabet,
+			newSymbols,
+			smartMaxTests,
+			smartMinLength,
+			smartMaxLength,
+			wpLookahead,
+			rnd_seed
+		);
+		
+		return hybridOracle;
+	}
 
 	
 	public static void learnalgo(File productFile_2, String[] args,int product) throws Exception {
@@ -756,18 +805,14 @@ private static int collectTreeInfo(
 	
 	public static <I, O> void main(String[] args) throws Exception {
 
-//         if (args.length < 1) {
-//             System.err.println("Usage: LearnMealyWithKV <dot-file>");
-//             System.exit(1);
-//         }
-		String[] a54= {".\\alternative_experiments\\Minepump_SPL\\products_3wise"
+
+		String[] a54 = {".\\alternative_experiments\\Minepump_SPL\\products_3wise"
 			,".\\alternative_experiments\\Minepump_SPL\\products_3wise"};
-		String[] a213={"00001_fsm.dot","00002_fsm.dot"};
+		String[] a213 = {"000010_fsm.dot","00005_fsm.dot"};
 		
 	for(int i=0;i<2;i++){
 		File productFile_2 = new File(a54[i],a213[i]);
 		System.out.println(productFile_2);
-		System.out.print("Fvvvvvv");
 		CompactMealy<String, Word<String>> mealyMachine;
 		mealyMachine = LoadMealy(productFile_2);
 		System.out.print(mealyMachine);
@@ -815,14 +860,19 @@ private static int collectTreeInfo(
 		System.out.println("  - " + symbol);
 	}
 	
+	// Track new symbols for smart EQ oracle
+	Set<String> newSymbolsInThisProduct = new HashSet<>();
+	
 	// CRITICAL FIX: For Product 0, use ONLY current product's symbols
 	// For Product 1+, combine with previous product's symbols for adaptive learning
 	if (i == 0) {
 		// Product 0: Start fresh with only its own symbols
 		allInputAlphabets.clear();
+		previousProductSymbols.clear();
 		for (String symbol : productAlphabet) {
 			System.out.println("EEE"+symbol);
 			allInputAlphabets.add(symbol);
+			previousProductSymbols.add(symbol);
 		}
 	} else {
 		// Product 1+: Add new symbols from current product to existing collection
@@ -830,8 +880,19 @@ private static int collectTreeInfo(
 			if (!allInputAlphabets.contains(symbol)) {
 				System.out.println("EEE"+symbol);
 				allInputAlphabets.add(symbol);
+				newSymbolsInThisProduct.add(symbol);  // Track new symbols
+			}
+			if (!previousProductSymbols.contains(symbol)) {
+				previousProductSymbols.add(symbol);
 			}
 		}
+		
+		System.out.println("\n========== NEW SYMBOLS DETECTED ==========");
+		System.out.println("New symbols in Product " + i + ": " + newSymbolsInThisProduct.size());
+		for (String sym : newSymbolsInThisProduct) {
+			System.out.println("  + " + sym);
+		}
+		System.out.println("==========================================\n");
 	}
 			
 	System.out.println("Combined alphabet now has " + allInputAlphabets.size() + " unique symbols");
@@ -1131,7 +1192,16 @@ else{
 	SUL<String, Word<String>> eq_sul = eq_rst;
 	
 	EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = null;
-	eqOracle = buildEqOracle(rnd_seed, line, updatedMealy, eq_sul);
+	
+	// Use Hybrid Adaptive EQ Oracle for products after the first one
+	if (i > 0 && previousLearnedProducts.size() > 0) {
+		System.out.println("\n✓ Using HYBRID ADAPTIVE EQ ORACLE for Product " + i);
+		System.out.println("  This combines smart testing + exhaustive WpMethod fallback");
+		eqOracle = buildHybridAdaptiveEqOracle(rnd_seed, learner.get_alphabet_symbol(), newSymbolsInThisProduct, eq_sul);
+	} else {
+		System.out.println("\n✓ Using STANDARD EQ ORACLE for Product " + i);
+		eqOracle = buildEqOracle(rnd_seed, line, updatedMealy, eq_sul);
+	}
 	// Use the learner's alphabet for the experiment (already normalized and extended if needed)
 	Experiment.MealyExperiment<String, Word<String>> experiment = 
 	new Experiment.MealyExperiment<String, Word<String>>(learner, eqOracle, learner.get_alphabet_symbol());
@@ -1224,10 +1294,15 @@ else{
 	// Save hypothesis for next product
 	previousHypothesis = (CompactMealy<String, Word<String>>) experiment.getFinalHypothesis();
 	
+	// Add to list of previous learned products for smart EQ oracle
+	MealyMachine<?, String, ?, Word<String>> finalHypothesisCopy = experiment.getFinalHypothesis();
+	previousLearnedProducts.add(finalHypothesisCopy);
+	
 	System.out.println("Saved for next product:");
 	// System.out.println("  Tree depth/size: " + tree.getRoot().subtreeSize());
 	System.out.println("  Alphabet size: " + product1Alphabet.size());
 	System.out.println("  Hypothesis saved with " + previousHypothesis.size() + " states");
+	System.out.println("  Total learned products for smart oracle: " + previousLearnedProducts.size());
 	
 	// ========== CALL TREE ANALYSIS ==========
 	System.out.println("\n");
@@ -1438,10 +1513,7 @@ else{
 	// System.out.println("Initial state: " + combinedMealyMachine.getInitialState());
 	// System.out.println("Alphabet size: " + combinedMealyMachine.getInputAlphabet().size() + " symbols");
 	
-		// File productFile_2 = new File(
-				// "E:\\learning\\Projectpayan\\software\\SPL_Learning\\experiments\\BCS_SPL\\products_3wise",
-				// "00001_fsm.dot");
-	
+
 		
 		// Create file and call learnalgo
 		
@@ -1468,9 +1540,7 @@ else{
 		options.addOption(INFO, true, "Add extra information as string");
 		options.addOption(DIR, true, "Directory of the SPL products");
 		options.addOption(FM, true, "Feature model");
-		// File productFile_2 = new File(
-				// "E:\\learning\\Projectpayan\\software\\SPL_Learning\\experiments\\Minepump_SPL\\products_3wise",
-				// "00001_fsm.dot");
+
 		return options;
 	}
 

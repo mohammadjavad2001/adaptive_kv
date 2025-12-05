@@ -330,7 +330,7 @@ public class CompareAndVisualizeProducts {
         try {
             // Default products to compare
             String product1Path = ".\\alternative_experiments\\Minepump_SPL\\products_3wise\\00001_fsm.dot";
-            String product2Path = ".\\alternative_experiments\\Minepump_SPL\\products_3wise\\00004_fsm.dot";
+            String product2Path = ".\\alternative_experiments\\Minepump_SPL\\products_3wise\\00003_fsm.dot";
             String product1Name = product1Path;
             String product2Name = product2Path;
             

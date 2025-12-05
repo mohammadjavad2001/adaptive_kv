@@ -122,6 +122,11 @@ public class hi<
 	private static ArrayList<String> allInputAlphabets = new ArrayList<>();
 	// Store Product 0's alphabet for adaptive learning (reused in Product 1+)
 	private static Alphabet<String> product1Alphabet = null;
+	
+	// Store previously learned products for smart EQ oracle
+	private static List<MealyMachine<?, String, ?, Word<String>>> previousLearnedProducts = new ArrayList<>();
+	// Track new symbols added in each product
+	private static Set<String> previousProductSymbols = new HashSet<>();
 
 	private static int ExtractValue(String string_1) {
 		// TODO Auto-generated method stub
