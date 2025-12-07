@@ -282,3 +282,4 @@ public class SmartAdaptiveEQOracle<I, O> implements EquivalenceOracle<MealyMachi
     }
 }
 
+

@@ -127,7 +127,8 @@ public class hi_single<
 	private static Alphabet<String> product1Alphabet = null;
 	// Store previous product's hypothesis
 	private static CompactMealy<String, Word<String>> previousHypothesis = null;
-	
+
+
 	// Store previously learned products for smart EQ oracle
 	private static List<MealyMachine<?, String, ?, Word<String>>> previousLearnedProducts = new ArrayList<>();
 	// Track symbols from previous products
@@ -808,7 +809,7 @@ private static int collectTreeInfo(
 
 		String[] a54 = {".\\alternative_experiments\\Minepump_SPL\\products_3wise"
 			,".\\alternative_experiments\\Minepump_SPL\\products_3wise"};
-		String[] a213 = {"000010_fsm.dot","00005_fsm.dot"};
+		String[] a213 = {"00001_fsm.dot","00005_fsm.dot"};
 		
 	for(int i=0;i<2;i++){
 		File productFile_2 = new File(a54[i],a213[i]);
