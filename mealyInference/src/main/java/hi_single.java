@@ -806,12 +806,45 @@ private static int collectTreeInfo(
 	
 	public static <I, O> void main(String[] args) throws Exception {
 
-
-		String[] a54 = {".\\alternative_experiments\\Minepump_SPL\\products_3wise"
-			,".\\alternative_experiments\\Minepump_SPL\\products_3wise"};
-		String[] a213 = {"00001_fsm.dot","00005_fsm.dot"};
+		// Define directory and initial product list
+		String productsDirectory = ".\\alternative_experiments\\Minepump_SPL\\products_3wise";
+		String[] originalProducts = {"00001_fsm.dot", "00002_fsm.dot", "00003_fsm.dot", "00004_fsm.dot", "00005_fsm.dot"};
 		
-	for(int i=0;i<2;i++){
+		// ═══════════════════════════════════════════════════════════════
+		// PRODUCT ORDERING BY FEATURE SIMILARITY
+		// ═══════════════════════════════════════════════════════════════
+		System.out.println("\n");
+		System.out.println("██████████████████████████████████████████████████████████████");
+		System.out.println("█                                                            █");
+		System.out.println("█   ADAPTIVE LEARNING WITH PRODUCT SIMILARITY ORDERING      █");
+		System.out.println("█                                                            █");
+		System.out.println("██████████████████████████████████████████████████████████████");
+		System.out.println("\n");
+		
+		// Print similarity matrix for analysis
+		ProductOrderingBySimilarity.printSimilarityMatrix(productsDirectory, originalProducts);
+		
+		// Order products by feature similarity
+		String[] orderedProducts = ProductOrderingBySimilarity.orderProductsBySimilarity(
+			productsDirectory, 
+			originalProducts
+		);
+		
+		// Use ordered products for learning
+		String[] a213 = orderedProducts;
+		int numProducts = orderedProducts.length;
+		
+		// Create directory array (same directory for all products)
+		String[] a54 = new String[numProducts];
+		for (int i = 0; i < numProducts; i++) {
+			a54[i] = productsDirectory;
+		}
+		
+		System.out.println("╔════════════════════════════════════════════════════════════╗");
+		System.out.println("║  STARTING ADAPTIVE LEARNING WITH ORDERED PRODUCTS          ║");
+		System.out.println("╚════════════════════════════════════════════════════════════╝\n");
+		
+	for(int i=0;i<numProducts;i++){
 		File productFile_2 = new File(a54[i],a213[i]);
 		System.out.println(productFile_2);
 		CompactMealy<String, Word<String>> mealyMachine;
@@ -1457,29 +1490,96 @@ else{
 	System.out.println("\n\n");
 	System.out.println("╔════════════════════════════════════════════════════════════════╗");
 	System.out.println("║         ADAPTIVE LEARNING RESULTS SUMMARY                      ║");
+	System.out.println("║    (Products ordered by feature similarity)                    ║");
 	System.out.println("╚════════════════════════════════════════════════════════════════╝");
 	System.out.println();
 	
-	// Product 0 Results
-	System.out.println("Product 0:"+a213[0]);
-	System.out.println("  Rounds: " + productStats[0][0]);
-	System.out.println("  MQ Resets: " + productStats[0][1] + ", Symbols: " + productStats[0][2]);
-	System.out.println("  EQ Resets: " + productStats[0][3] + ", Symbols: " + productStats[0][4]);
-	System.out.println("  States: " + productStates[0]);
-	System.out.println("  Alphabet: " + productAlphabetSizes[0] + " symbols");
-	System.out.println();
+	// Print all products
+	for (int p = 0; p < numProducts; p++) {
+		if (p == 0) {
+			System.out.println("Product 0 (Baseline): " + a213[p]);
+		} else {
+			System.out.println("Product " + p + " (Adaptive): " + a213[p]);
+		}
+		System.out.println("  Rounds: " + productStats[p][0]);
+		System.out.println("  MQ Resets: " + productStats[p][1] + ", Symbols: " + productStats[p][2]);
+		System.out.println("  EQ Resets: " + productStats[p][3] + ", Symbols: " + productStats[p][4]);
+		System.out.println("  States: " + productStates[p]);
+		System.out.println("  Alphabet: " + productAlphabetSizes[p] + " symbols" + 
+			(p > 0 ? " (" + productAlphabetSizes[0] + " + " + newSymbolsAdded[p] + " new)" : ""));
+		
+		if (p > 0) {
+			System.out.println("  ✓ Tree reused from product " + (p-1));
+			System.out.println("  ✓ " + newSymbolsAdded[p] + " new symbols added");
+			
+			// Calculate benefit
+			long baselineRounds = productStats[0][0];
+			long adaptiveRounds = productStats[p][0];
+			long baselineMQResets = productStats[0][1];
+			long adaptiveMQResets = productStats[p][1];
+			long baselineEQResets = productStats[0][3];
+			long adaptiveEQResets = productStats[p][3];
+			
+			if (baselineRounds > 0) {
+				double roundsReduction = ((double)(baselineRounds - adaptiveRounds) / baselineRounds) * 100;
+				System.out.println("  ✓ Rounds reduction: " + String.format("%.1f", roundsReduction) + "%");
+			}
+			if (baselineMQResets > 0) {
+				double mqReduction = ((double)(baselineMQResets - adaptiveMQResets) / baselineMQResets) * 100;
+				System.out.println("  ✓ MQ Resets reduction: " + String.format("%.1f", Math.abs(mqReduction)) + "%");
+			}
+			if (baselineEQResets > 0) {
+				double eqReduction = ((double)(baselineEQResets - adaptiveEQResets) / baselineEQResets) * 100;
+				System.out.println("  ✓ EQ Resets reduction: " + String.format("%.1f", eqReduction) + "%");
+			}
+		}
+		System.out.println();
+	}
 	
-	// Product 1 Results
-	System.out.println("Product 1 (Adaptive):"+a213[1]);
-	System.out.println("  Rounds: " + productStats[1][0]);
-	System.out.println("  MQ Resets: " + productStats[1][1] + ", Symbols: " + productStats[1][2]);
-	System.out.println("  EQ Resets: " + productStats[1][3] + ", Symbols: " + productStats[1][4]);
-	System.out.println("  States: " + productStates[1]);
-	System.out.println("  Alphabet: " + productAlphabetSizes[1] + " symbols (" + productAlphabetSizes[0] + " + " + newSymbolsAdded[1] + " new)");
-	System.out.println("  ✓ Tree reused from product 0");
-	System.out.println("  ✓ " + newSymbolsAdded[1] + " new symbols added");
-	System.out.println();
+	System.out.println("════════════════════════════════════════════════════════════════");
 	
+	// Calculate overall benefits
+	long totalAdaptiveRounds = 0;
+	long totalAdaptiveMQ = 0;
+	long totalAdaptiveEQ = 0;
+	long totalBaselineEquivalent = (numProducts - 1) * productStats[0][0]; // What it would be without adaptive
+	long totalBaselineMQEquivalent = (numProducts - 1) * productStats[0][1];
+	long totalBaselineEQEquivalent = (numProducts - 1) * productStats[0][3];
+	
+	for (int p = 1; p < numProducts; p++) {
+		totalAdaptiveRounds += productStats[p][0];
+		totalAdaptiveMQ += productStats[p][1];
+		totalAdaptiveEQ += productStats[p][3];
+	}
+	
+	System.out.println("\n╔════════════════════════════════════════════════════════════════╗");
+	System.out.println("║              OVERALL ADAPTIVE LEARNING BENEFIT                 ║");
+	System.out.println("╚════════════════════════════════════════════════════════════════╝");
+	System.out.println();
+	System.out.println("Without adaptive (Products 1-" + (numProducts-1) + "):");
+	System.out.println("  Expected Rounds: " + totalBaselineEquivalent);
+	System.out.println("  Expected MQ Resets: " + totalBaselineMQEquivalent);
+	System.out.println("  Expected EQ Resets: " + totalBaselineEQEquivalent);
+	System.out.println();
+	System.out.println("With adaptive (Products 1-" + (numProducts-1) + "):");
+	System.out.println("  Actual Rounds: " + totalAdaptiveRounds);
+	System.out.println("  Actual MQ Resets: " + totalAdaptiveMQ);
+	System.out.println("  Actual EQ Resets: " + totalAdaptiveEQ);
+	System.out.println();
+	System.out.println("Total Savings:");
+	if (totalBaselineEquivalent > 0) {
+		double roundsSaved = ((double)(totalBaselineEquivalent - totalAdaptiveRounds) / totalBaselineEquivalent) * 100;
+		System.out.println("  Rounds: " + String.format("%.1f", roundsSaved) + "% reduction");
+	}
+	if (totalBaselineMQEquivalent > 0) {
+		double mqSaved = ((double)(totalBaselineMQEquivalent - totalAdaptiveMQ) / totalBaselineMQEquivalent) * 100;
+		System.out.println("  MQ Resets: " + String.format("%.1f", Math.abs(mqSaved)) + "% " + (mqSaved >= 0 ? "reduction" : "increase"));
+	}
+	if (totalBaselineEQEquivalent > 0) {
+		double eqSaved = ((double)(totalBaselineEQEquivalent - totalAdaptiveEQ) / totalBaselineEQEquivalent) * 100;
+		System.out.println("  EQ Resets: " + String.format("%.1f", eqSaved) + "% reduction");
+	}
+	System.out.println();
 	System.out.println("════════════════════════════════════════════════════════════════");
 	System.out.println();
 	
