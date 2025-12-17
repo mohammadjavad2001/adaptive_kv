@@ -109,7 +109,7 @@ public class LearnAllProductsAdaptive {
 		return value_1;
 	}
 
-	// Canonicalize tree discriminators
+	// Canonicalize tree discriminators with null safety
 	private static void canonicalizeTreeDiscriminators(
 			AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> node,
 			Alphabet<String> newAlphabet) {
@@ -163,9 +163,19 @@ public class LearnAllProductsAdaptive {
 			}
 		}
 
-		Collection<Map.Entry<Word<Word<String>>, AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>>> children = node.getChildEntries();
-		for (Map.Entry<Word<Word<String>>, AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>> entry : children) {
-			canonicalizeTreeDiscriminators(entry.getValue(), newAlphabet);
+		// Safe child iteration with null checks
+		try {
+			Collection<Map.Entry<Word<Word<String>>, AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>>> children = node.getChildEntries();
+			if (children != null) {
+				for (Map.Entry<Word<Word<String>>, AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>> entry : children) {
+					if (entry != null && entry.getValue() != null) {
+						canonicalizeTreeDiscriminators(entry.getValue(), newAlphabet);
+					}
+				}
+			}
+		} catch (NullPointerException e) {
+			System.err.println("WARNING: NullPointerException while canonicalizing tree - skipping children");
+			System.err.println("  This may indicate tree structure issues. Tree will be used as-is.");
 		}
 	}
 
@@ -364,19 +374,137 @@ public class LearnAllProductsAdaptive {
 		return eqOracle;
 	}
 
-	// Helper method to learn Product 1 and return its tree and hypothesis
-	private static class Product1Result {
+	// Helper method to learn any product and return its tree and hypothesis
+	private static class ProductResult {
 		MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree;
 		CompactMealy<String, Word<String>> hypothesis;
 		GrowingAlphabet<String> alphabet;
+		int productIndex;
+		String productName;
 	}
 	
-	private static Product1Result learnProduct1Fresh(File product1File, String[] args) throws Exception {
+	// Product information for ordering
+	private static class ProductInfo {
+		File file;
+		Set<String> features;
+		int originalIndex;
+		
+		ProductInfo(File file, int index) {
+			this.file = file;
+			this.originalIndex = index;
+			this.features = new HashSet<>();
+		}
+	}
+	
+	// Read features from config file
+	private static Set<String> readFeaturesFromConfig(File configFile) throws IOException {
+		Set<String> features = new HashSet<>();
+		if (!configFile.exists()) {
+			System.out.println("  ⚠ Config file not found: " + configFile.getName());
+			return features;
+		}
+		try (BufferedReader br = new BufferedReader(new FileReader(configFile))) {
+			String line;
+			while ((line = br.readLine()) != null) {
+				line = line.trim();
+				if (!line.isEmpty()) {
+					features.add(line);
+				}
+			}
+		}
+		return features;
+	}
+	
+	// Calculate Jaccard similarity
+	private static double calculateSimilarity(Set<String> f1, Set<String> f2) {
+		if (f1.isEmpty() && f2.isEmpty()) return 1.0;
+		Set<String> intersection = new HashSet<>(f1);
+		intersection.retainAll(f2);
+		Set<String> union = new HashSet<>(f1);
+		union.addAll(f2);
+		return union.isEmpty() ? 0.0 : (double) intersection.size() / union.size();
+	}
+	
+	// Order products by feature similarity (greedy algorithm)
+	private static List<ProductInfo> orderProductsBySimilarity(File[] productFiles, File productsDir) throws IOException {
+		System.out.println("\n" + "═".repeat(70));
+		System.out.println("  ORDERING PRODUCTS BY FEATURE SIMILARITY");
+		System.out.println("═".repeat(70));
+		
+		// Load features for all products
+		List<ProductInfo> products = new ArrayList<>();
+		for (int i = 0; i < productFiles.length; i++) {
+			ProductInfo info = new ProductInfo(productFiles[i], i);
+			String configName = productFiles[i].getName().replace("_fsm.dot", ".config");
+			File configFile = new File(productsDir, configName);
+			info.features = readFeaturesFromConfig(configFile);
+			products.add(info);
+			
+			System.out.println("\nProduct " + (i+1) + ": " + productFiles[i].getName());
+			System.out.println("  Features (" + info.features.size() + "): " + info.features);
+		}
+		
+		// Greedy ordering: select most similar to already-learned products
+		List<ProductInfo> ordered = new ArrayList<>();
+		List<ProductInfo> remaining = new ArrayList<>(products);
+		
+		// Start with first product
+		ordered.add(remaining.remove(0));
+		System.out.println("\n" + "─".repeat(70));
+		System.out.println("ORDERING SEQUENCE (Greedy - Maximum Average Similarity)");
+		System.out.println("─".repeat(70));
+		System.out.println("1. " + ordered.get(0).file.getName() + " (starting product)");
+		
+		// Iteratively select most similar product
+		while (!remaining.isEmpty()) {
+			ProductInfo best = null;
+			double bestSimilarity = -1.0;
+			
+			for (ProductInfo candidate : remaining) {
+				// Calculate average similarity to all learned products
+				double totalSim = 0.0;
+				for (ProductInfo learned : ordered) {
+					totalSim += calculateSimilarity(candidate.features, learned.features);
+				}
+				double avgSim = totalSim / ordered.size();
+				
+				if (avgSim > bestSimilarity) {
+					bestSimilarity = avgSim;
+					best = candidate;
+				}
+			}
+			
+			ordered.add(best);
+			remaining.remove(best);
+			
+			// Find most similar learned product
+			double maxSim = 0.0;
+			ProductInfo mostSimilar = null;
+			for (ProductInfo learned : ordered) {
+				if (learned == best) continue;
+				double sim = calculateSimilarity(best.features, learned.features);
+				if (sim > maxSim) {
+					maxSim = sim;
+					mostSimilar = learned;
+				}
+			}
+			
+			System.out.println(ordered.size() + ". " + best.file.getName() + 
+				" (avg sim: " + String.format("%.3f", bestSimilarity) + 
+				", most similar to: " + (mostSimilar != null ? mostSimilar.file.getName() : "none") + 
+				" [" + String.format("%.3f", maxSim) + "])");
+		}
+		
+		System.out.println("═".repeat(70) + "\n");
+		return ordered;
+	}
+	
+	private static ProductResult learnProductFresh(File productFile, String[] args, int productIndex) throws Exception {
 		System.out.println("\n" + "█".repeat(70));
-		System.out.println("  LEARNING PRODUCT 1 (FRESH) FOR TREE/HYPOTHESIS EXTRACTION");
+		System.out.println("  LEARNING " + productFile.getName() + " (FRESH) FOR TREE/HYPOTHESIS");
 		System.out.println("█".repeat(70));
 		
-		CompactMealy<String, Word<String>> mealyMachine = LoadMealy(product1File);
+		CompactMealy<String, Word<String>> mealyMachine = LoadMealy(productFile);
 		
 		CommandLineParser parser = new BasicParser();
 		Options options = createOptions();
@@ -419,19 +547,21 @@ public class LearnAllProductsAdaptive {
 				learner, eqOracle, learner.get_alphabet_symbol());
 		
 		// Run experiment
-		System.out.println("Learning Product 1 from scratch...");
+		System.out.println("Learning " + productFile.getName() + " from scratch...");
 		experiment.run(true, null);
 		
 		// Extract results
-		Product1Result result = new Product1Result();
+		ProductResult result = new ProductResult();
 		result.tree = experiment.getDiscrtree();
 		if (result.tree == null) {
 			result.tree = learner.getDiscriminationTree();
 		}
 		result.hypothesis = (CompactMealy<String, Word<String>>) experiment.getFinalHypothesis();
 		result.alphabet = (GrowingAlphabet<String>) learner.get_alphabet_symbol();
+		result.productIndex = productIndex;
+		result.productName = productFile.getName();
 		
-		System.out.println("✓ Product 1 learned: " + result.hypothesis.size() + " states, alphabet size: " + result.alphabet.size());
+		System.out.println("✓ " + productFile.getName() + " learned: " + result.hypothesis.size() + " states, alphabet: " + result.alphabet.size());
 		System.out.println("█".repeat(70) + "\n");
 		
 		return result;
@@ -491,38 +621,75 @@ public class LearnAllProductsAdaptive {
 		File productsDir = new File(".\\alternative_experiments\\Minepump_SPL\\products_3wise");
 		File[] productFiles = productsDir.listFiles((dir, name) -> name.matches("\\d{5}_fsm\\.dot"));
 		Arrays.sort(productFiles);
-
+			
 		System.out.println("╔════════════════════════════════════════════════════════════════╗");
-		System.out.println("║     ADAPTIVE LEARNING - ALL MINEPUMP_SPL PRODUCTS              ║");
+		System.out.println("║  ADAPTIVE LEARNING WITH FEATURE SIMILARITY ORDERING            ║");
 		System.out.println("╚════════════════════════════════════════════════════════════════╝");
 		System.out.println("\nFound " + productFiles.length + " products to learn\n");
-		System.out.println("Strategy: Learn Product 1 fresh before each new product");
-		System.out.println("          Then reuse Product 1's tree/hypothesis for that product\n");
+		
+		// ORDER PRODUCTS BY FEATURE SIMILARITY
+		List<ProductInfo> orderedProducts = orderProductsBySimilarity(productFiles, productsDir);
+		
+		System.out.println("╔════════════════════════════════════════════════════════════════╗");
+		System.out.println("║  LEARNING STRATEGY: SEQUENTIAL ADAPTIVE TREE REUSE             ║");
+		System.out.println("╠════════════════════════════════════════════════════════════════╣");
+		System.out.println("║  • Product 1 ("+orderedProducts.get(0).file.getName()+"): Learn from scratch                    ║");
+		System.out.println("║  • Product 2 ("+orderedProducts.get(1).file.getName()+"): Use Product 1's tree                   ║");
+		if (orderedProducts.size() > 2) {
+			System.out.println("║  • Product 3 ("+orderedProducts.get(2).file.getName()+"): Use Product 2's tree                   ║");
+		}
+		if (orderedProducts.size() > 3) {
+			System.out.println("║  • Product 4 ("+orderedProducts.get(3).file.getName()+"): Use Product 3's tree                   ║");
+		}
+		if (orderedProducts.size() > 4) {
+			System.out.println("║  • ...                                                         ║");
+		}
+		System.out.println("║                                                                ║");
+		System.out.println("║  SEQUENTIAL CHAIN: P1 → P2(uses P1) → P3(uses P2) → ...       ║");
+		System.out.println("║  Each product re-learned fresh before next uses its tree      ║");
+		System.out.println("╚════════════════════════════════════════════════════════════════╝\n");
 
-		// Learn each product with fresh Product 1 tree reuse
-		for (int i = 0; i < productFiles.length; i++) {
+		// Learn each product in optimized order
+		
+		for (int i = 0; i < orderedProducts.size(); i++) {
+			ProductInfo currentProduct = orderedProducts.get(i);
 			
-			// For products 2-15: Learn Product 1 fresh first to get clean tree/hypothesis
+			// For products 2+: Re-learn PREVIOUS product fresh to get its tree
 			if (i > 0) {
+				ProductInfo previousProduct = orderedProducts.get(i - 1);
+				
 				System.out.println("\n" + "▼".repeat(70));
-				System.out.println("  PREPARING TO LEARN PRODUCT " + (i + 1));
-				System.out.println("  Step 1: Learn Product 1 fresh to get tree/hypothesis");
+				System.out.println("  SEQUENTIAL ADAPTIVE LEARNING: PRODUCT " + (i + 1) + "/" + orderedProducts.size());
 				System.out.println("▼".repeat(70));
+				System.out.println("  Current Product: " + currentProduct.file.getName());
+				System.out.println("  Previous Product: " + previousProduct.file.getName());
+				System.out.println();
+				System.out.println("  STEP 1: Re-learn " + previousProduct.file.getName() + " FRESH");
+				System.out.println("          Purpose: Get fresh tree and hypothesis from previous product");
+				System.out.println("          This ensures we use the most recent product's knowledge");
+				System.out.println();
 				
-				Product1Result product1Result = learnProduct1Fresh(productFiles[0], args);
-				tree_round2 = product1Result.tree;
-				previousHypothesis = product1Result.hypothesis;
-				product1Alphabet = product1Result.alphabet;
+				ProductResult previousResult = learnProductFresh(previousProduct.file, args, i - 1);
+				tree_round2 = previousResult.tree;
+				previousHypothesis = previousResult.hypothesis;
+				product1Alphabet = previousResult.alphabet;
 				
-				// Reset alphabet collection to Product 1's alphabet
+				// Reset alphabet collection to previous product's alphabet
 				allInputAlphabets.clear();
 				for (String symbol : product1Alphabet) {
 					allInputAlphabets.add(symbol);
 				}
 				
-				System.out.println("  Step 2: Now learn Product " + (i + 1) + " using Product 1's tree");
+				System.out.println("  ✓ Got " + previousProduct.file.getName() + "'s tree:");
+				System.out.println("      - States: " + previousResult.hypothesis.size());
+				System.out.println("      - Alphabet: " + previousResult.alphabet.size() + " symbols");
+				System.out.println();
+				System.out.println("  STEP 2: Learn " + currentProduct.file.getName() + " ADAPTIVELY");
+				System.out.println("          Using " + previousProduct.file.getName() + "'s tree as starting point");
+				System.out.println("▼".repeat(70));
 			}
-			File productFile = productFiles[i];
+			
+			File productFile = currentProduct.file;
 			System.out.println("\n" + "=".repeat(70));
 			System.out.println("LEARNING PRODUCT " + (i + 1) + "/" + productFiles.length + ": " + productFile.getName());
 			System.out.println("=".repeat(70));
@@ -584,8 +751,10 @@ public class LearnAllProductsAdaptive {
 						.create(null, null);
 				System.out.println("Learning from scratch (Product 1)");
 			} else {
-				// Products 2+: Adaptive learning with tree reuse
-				System.out.println("Adaptive learning (reusing Product 1's FRESH tree)");
+				// Products 2+: Adaptive learning with tree reuse from PREVIOUS product
+				ProductInfo previousProduct = orderedProducts.get(i - 1);
+				System.out.println("✓ Adaptive learning mode");
+				System.out.println("  Reusing tree from: " + previousProduct.file.getName());
 				
 				// Safety check: ensure tree exists
 				if (tree_round2 == null || previousHypothesis == null) {
@@ -668,11 +837,96 @@ public class LearnAllProductsAdaptive {
 					}
 				}
 
-				updateStateInfoInTree(tree_round2.getRoot(), stateMap);
-				canonicalizeTreeDiscriminators(tree_round2.getRoot(), extendedAlphabet);
+				// Validate tree before using it
+				if (tree_round2 == null || tree_round2.getRoot() == null) {
+					System.err.println("ERROR: Tree or tree root is null! Cannot perform adaptive learning.");
+					throw new IllegalStateException("Tree structure is invalid");
+				}
+				
+				// Validate tree structure before modification
+				System.out.println("  Validating tree structure...");
+				boolean treeIsValid = true;
+				try {
+					AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> root = tree_round2.getRoot();
+					if (root != null) {
+						// Try to access children to validate structure
+						if (!root.isLeaf()) {
+							Collection<Map.Entry<Word<Word<String>>, AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>>> testChildren = root.getChildEntries();
+							if (testChildren == null) {
+								System.err.println("WARNING: Tree root has null children - tree may be corrupted");
+								treeIsValid = false;
+							} else {
+								// Check if any child is null
+								for (Map.Entry<Word<Word<String>>, AbstractWordBasedDTNode<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>>> entry : testChildren) {
+									if (entry == null || entry.getValue() == null) {
+										System.err.println("WARNING: Found null child entry in tree");
+										treeIsValid = false;
+										break;
+									}
+								}
+							}
+						}
+					}
+				} catch (NullPointerException e) {
+					System.err.println("ERROR: Tree structure validation failed - tree may be corrupted");
+					System.err.println("  Error: " + e.getMessage());
+					treeIsValid = false;
+				}
+				
+				if (!treeIsValid) {
+					System.err.println("  ⚠ Tree validation failed - skipping tree modifications");
+					System.err.println("  Tree will be used as-is (may cause issues)");
+				} else {
+					// Update tree with null safety (only if tree is valid)
+					try {
+						updateStateInfoInTree(tree_round2.getRoot(), stateMap);
+					} catch (Exception e) {
+						System.err.println("WARNING: Error updating state info in tree: " + e.getMessage());
+						System.err.println("  Continuing without state info update...");
+					}
+					
+					// Canonicalize tree with null safety (only if tree is valid)
+					try {
+						canonicalizeTreeDiscriminators(tree_round2.getRoot(), extendedAlphabet);
+					} catch (Exception e) {
+						System.err.println("WARNING: Error canonicalizing tree discriminators: " + e.getMessage());
+						System.err.println("  Continuing without canonicalization...");
+					}
+				}
 
-				learner = (IKearnsVaziraniMealy<String, Word<String>>) builder.withAlphabet(extendedAlphabet)
-						.create(tree_round2, adaptedHypothesis);
+				// Final validation: Check if tree can be safely used
+				boolean canReuseTree = treeIsValid;
+				if (canReuseTree) {
+					try {
+						// Try to create learner - if this fails, we'll catch it in the experiment.run
+						System.out.println("  Creating learner with reused tree...");
+						learner = (IKearnsVaziraniMealy<String, Word<String>>) builder.withAlphabet(extendedAlphabet)
+								.create(tree_round2, adaptedHypothesis);
+						System.out.println("  ✓ Learner created successfully with reused tree");
+					} catch (Exception e) {
+						System.err.println("  ❌ Failed to create learner with reused tree: " + e.getMessage());
+						System.err.println("  Will fall back to fresh learning in experiment.run()");
+						canReuseTree = false;
+						// Create fresh learner as backup
+						product1Alphabet = new GrowingMapAlphabet<>(Alphabets.fromCollection(allInputAlphabets));
+						MembershipOracle<String, Word<Word<String>>> mqOracle2 = new SULOracle<String, Word<String>>(mq_sul);
+						IKearnsVaziraniMealyBuilder<Object, String, Word<String>> freshBuilder = new IKearnsVaziraniMealyBuilder<>();
+						freshBuilder.setOracle(mqOracle2);
+						freshBuilder.setAlphabet(combinedAlphabet);
+						learner = (IKearnsVaziraniMealy<String, Word<String>>) freshBuilder.withAlphabet(product1Alphabet)
+								.create(null, null);
+					}
+				} else {
+					// Tree is invalid, learn from scratch
+					System.out.println("  ⚠ Tree validation failed - learning from scratch instead");
+					product1Alphabet = new GrowingMapAlphabet<>(Alphabets.fromCollection(allInputAlphabets));
+					MembershipOracle<String, Word<Word<String>>> mqOracle3 = new SULOracle<String, Word<String>>(mq_sul);
+					IKearnsVaziraniMealyBuilder<Object, String, Word<String>> freshBuilder = new IKearnsVaziraniMealyBuilder<>();
+					freshBuilder.setOracle(mqOracle3);
+					freshBuilder.setAlphabet(combinedAlphabet);
+					learner = (IKearnsVaziraniMealy<String, Word<String>>) freshBuilder.withAlphabet(product1Alphabet)
+							.create(null, null);
+				}
 			}
 
 			// Create EQ oracle
@@ -703,7 +957,8 @@ public class LearnAllProductsAdaptive {
 						}
 					}
 				}
-			} else {
+			} 
+			else {
 				updatedMealy = mealyMachine;
 			}
 
@@ -717,15 +972,48 @@ public class LearnAllProductsAdaptive {
 			Experiment.MealyExperiment<String, Word<String>> experiment = new Experiment.MealyExperiment<String, Word<String>>(
 					learner, eqOracle, learner.get_alphabet_symbol());
 
-			// Run experiment
+			// Run experiment with error handling
 			if (i == 0) {
 				experiment.run(true, null);
 			} else {
-				experiment.run(false, null);
+				try {
+					System.out.println("  Attempting adaptive learning with tree reuse...");
+					experiment.run(false, null);
+				} catch (NullPointerException e) {
+					System.err.println("\n❌ ERROR: NullPointerException during adaptive learning!");
+					System.err.println("  This usually means the reused tree has structural issues.");
+					System.err.println("  Falling back to learning from scratch...");
+					System.err.println("  Stack trace:");
+					e.printStackTrace();
+					
+					// Fallback: Learn from scratch
+					System.out.println("\n  🔄 FALLBACK: Learning " + currentProduct.file.getName() + " from scratch");
+					
+					// Create fresh learner
+					product1Alphabet = new GrowingMapAlphabet<>(Alphabets.fromCollection(allInputAlphabets));
+					MembershipOracle<String, Word<Word<String>>> mqOracle = new SULOracle<String, Word<String>>(mq_sul);
+					IKearnsVaziraniMealyBuilder<Object, String, Word<String>> freshBuilder = new IKearnsVaziraniMealyBuilder<>();
+					freshBuilder.setOracle(mqOracle);
+					freshBuilder.setAlphabet(combinedAlphabet);
+					learner = (IKearnsVaziraniMealy<String, Word<String>>) freshBuilder.withAlphabet(product1Alphabet)
+							.create(null, null);
+					
+					// Create fresh experiment
+					Experiment.MealyExperiment<String, Word<String>> freshExperiment = 
+							new Experiment.MealyExperiment<String, Word<String>>(learner, eqOracle, learner.get_alphabet_symbol());
+					
+					// Run fresh learning
+					freshExperiment.run(true, null);
+					
+					// Update experiment reference for metrics collection
+					experiment = freshExperiment;
+					
+					System.out.println("  ✓ Successfully learned from scratch (fallback mode)");
+				}
 			}
 
-		// For Product 1, save tree and hypothesis for immediate next product
-		// For other products, we'll re-learn Product 1 fresh before the next one
+		// For first product, save tree and hypothesis for immediate next product
+		// For other products, we'll re-learn previous product fresh before the next one
 		if (i == 0) {
 			tree_round2 = experiment.getDiscrtree();
 			if (tree_round2 == null) {
@@ -734,7 +1022,7 @@ public class LearnAllProductsAdaptive {
 			}
 			product1Alphabet = (GrowingAlphabet<String>) learner.get_alphabet_symbol();
 			previousHypothesis = (CompactMealy<String, Word<String>>) experiment.getFinalHypothesis();
-			System.out.println("✓ Saved Product 1's tree and hypothesis for Product 2");
+			System.out.println("✓ Saved " + currentProduct.file.getName() + "'s tree for next product");
 		}
 
 			// Collect metrics
