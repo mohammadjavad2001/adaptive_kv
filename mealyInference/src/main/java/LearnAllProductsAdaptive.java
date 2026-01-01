@@ -81,6 +81,9 @@ public class LearnAllProductsAdaptive {
 	private static Alphabet<String> product1Alphabet = null;
 	private static CompactMealy<String, Word<String>> previousHypothesis = null;
 
+	// Storage for previous products (for HybridAdaptiveEQOracle)
+	private static List<MealyMachine<?, String, ?, Word<String>>> learnedProducts = new ArrayList<>();
+
 	// Statistics storage
 	private static List<ProductMetrics> allProductMetrics = new ArrayList<>();
 
@@ -337,10 +340,34 @@ public class LearnAllProductsAdaptive {
 
 	private static EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> buildEqOracle(
 			Random rnd_seed, CommandLine line, CompactMealy<String, Word<String>> mealyss,
-			SUL<String, Word<String>> eq_sul) {
+			SUL<String, Word<String>> eq_sul, Alphabet<String> currentAlphabet, Set<String> newSymbols, 
+			boolean useHybridOracle) {
 		MembershipOracle<String, Word<Word<String>>> oracleForEQoracle = new SULOracle<>(eq_sul);
 
 		EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle;
+		
+		// Use HybridAdaptiveEQOracle for adaptive learning (Product 2+)
+		if (useHybridOracle && !learnedProducts.isEmpty()) {
+			System.out.println("\n╔══════════════════════════════════════════════════════════╗");
+			System.out.println("║  Using HYBRID ADAPTIVE EQ ORACLE                         ║");
+			System.out.println("║  Previous products: " + learnedProducts.size() + "                                    ║");
+			System.out.println("║  New symbols in this product: " + newSymbols.size() + "                       ║");
+			System.out.println("╚══════════════════════════════════════════════════════════╝");
+			
+			return new HybridAdaptiveEQOracle<>(
+				oracleForEQoracle,
+				learnedProducts,
+				currentAlphabet,
+				newSymbols,
+				1000,  // smartMaxTests
+				3,     // smartMinLength
+				15,    // smartMaxLength
+				2,     // wpLookahead
+				rnd_seed
+			);
+		}
+		
+		// Default behavior for Product 1 or when not using hybrid oracle
 		if (!line.hasOption(EQ)) {
 			return new WpMethodEQOracle<>(oracleForEQoracle, 2);
 		}
@@ -412,8 +439,9 @@ public class LearnAllProductsAdaptive {
 		StatisticSUL<String, Word<String>> eq_rst = new ResetCounterSUL<>("EQ", eq_sym);
 		SUL<String, Word<String>> eq_sul = eq_rst;
 		
+		Set<String> emptyNewSymbols = new HashSet<>();
 		EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = buildEqOracle(
-				rnd_seed, line, mealyMachine, eq_sul);
+				rnd_seed, line, mealyMachine, eq_sul, productAlphabet, emptyNewSymbols, false);
 		
 		Experiment.MealyExperiment<String, Word<String>> experiment = new Experiment.MealyExperiment<String, Word<String>>(
 				learner, eqOracle, learner.get_alphabet_symbol());
@@ -514,6 +542,10 @@ public class LearnAllProductsAdaptive {
 				previousHypothesis = product1Result.hypothesis;
 				product1Alphabet = product1Result.alphabet;
 				
+				// Reset learnedProducts with fresh Product 1
+				learnedProducts.clear();
+				learnedProducts.add(previousHypothesis);
+				
 				// Reset alphabet collection to Product 1's alphabet
 				allInputAlphabets.clear();
 				for (String symbol : product1Alphabet) {
@@ -553,6 +585,9 @@ public class LearnAllProductsAdaptive {
 			Alphabet<String> productAlphabet = mealyMachine.getInputAlphabet();
 			System.out.println("\nProduct alphabet contains " + productAlphabet.size() + " symbols");
 
+			// Track new symbols for this product
+			Set<String> newSymbols = new HashSet<>();
+			
 			// Manage alphabet collection
 			if (i == 0) {
 				allInputAlphabets.clear();
@@ -563,9 +598,12 @@ public class LearnAllProductsAdaptive {
 				for (String symbol : productAlphabet) {
 					if (!allInputAlphabets.contains(symbol)) {
 						allInputAlphabets.add(symbol);
+						newSymbols.add(symbol);
 					}
 				}
 			}
+			
+			System.out.println("New symbols in this product: " + newSymbols.size());
 
 			Alphabet<String> combinedAlphabet = Alphabets.fromCollection(allInputAlphabets);
 			IKearnsVaziraniMealy<String, Word<String>> learner = null;
@@ -712,8 +750,13 @@ public class LearnAllProductsAdaptive {
 			StatisticSUL<String, Word<String>> eq_rst = new ResetCounterSUL<>("EQ", eq_sym);
 			SUL<String, Word<String>> eq_sul = eq_rst;
 
+			// Use HybridAdaptiveEQOracle for products 2+ (i > 0)
+			boolean useHybridOracle = (i > 0);
 			EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = buildEqOracle(
-					rnd_seed, line, updatedMealy, eq_sul);
+					rnd_seed, line, updatedMealy, eq_sul, 
+					(i == 0) ? productAlphabet : learner.get_alphabet_symbol(), 
+					newSymbols, 
+					useHybridOracle);
 			Experiment.MealyExperiment<String, Word<String>> experiment = new Experiment.MealyExperiment<String, Word<String>>(
 					learner, eqOracle, learner.get_alphabet_symbol());
 
@@ -734,7 +777,25 @@ public class LearnAllProductsAdaptive {
 			}
 			product1Alphabet = (GrowingAlphabet<String>) learner.get_alphabet_symbol();
 			previousHypothesis = (CompactMealy<String, Word<String>>) experiment.getFinalHypothesis();
+			
+			// Store Product 1 for HybridAdaptiveEQOracle
+			learnedProducts.clear();
+			learnedProducts.add(previousHypothesis);
+			
 			System.out.println("✓ Saved Product 1's tree and hypothesis for Product 2");
+		} else {
+			// For products 2+, add the learned hypothesis to the list
+			CompactMealy<String, Word<String>> finalHypothesis = (CompactMealy<String, Word<String>>) experiment.getFinalHypothesis();
+			
+			// Update learnedProducts: keep Product 1 + add this new product
+			if (learnedProducts.isEmpty() || learnedProducts.size() == 1) {
+				learnedProducts.add(finalHypothesis);
+			} else {
+				// Replace the second entry with the newly learned product
+				learnedProducts.set(1, finalHypothesis);
+			}
+			
+			System.out.println("✓ Stored learned hypothesis for future adaptive learning");
 		}
 
 			// Collect metrics
@@ -779,10 +840,15 @@ public class LearnAllProductsAdaptive {
 		System.out.println("\nTotal products learned: " + allProductMetrics.size());
 		System.out.println("Results saved to: " + excelFilename);
 		System.out.println("\nStrategy Used:");
-		System.out.println("  • Product 1: Learned from scratch");
+		System.out.println("  • Product 1: Learned from scratch with WpMethod EQ Oracle");
 		System.out.println("  • Products 2-15: Each used a FRESH Product 1 tree");
 		System.out.println("  • Product 1 was re-learned " + (productFiles.length - 1) + " times");
-		System.out.println("\nAll products learned successfully with tree reuse!");
+		System.out.println("\nEQ Oracle Strategy:");
+		System.out.println("  • Product 1: Standard WpMethod");
+		System.out.println("  • Products 2+: HybridAdaptiveEQOracle");
+		System.out.println("    - Phase 1: Smart Adaptive Testing (uses previous products)");
+		System.out.println("    - Phase 2: WpMethod fallback (exhaustive)");
+		System.out.println("\nAll products learned successfully with adaptive tree reuse!");
 	}
 
 	private static Options createOptions() {
