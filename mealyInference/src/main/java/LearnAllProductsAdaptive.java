@@ -72,6 +72,95 @@ import de.learnlib.filter.statistic.oracle.CounterSymbolQueryOracle;
 // Apache POI imports for Excel
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Cached Membership Oracle for reusing query results and reducing duplicate queries.
+ * This significantly improves performance in adaptive learning scenarios.
+ * 
+ * CRITICAL: Cache key uses Pair(prefix, suffix) NOT concat(prefix, suffix)
+ * because answerQuery(prefix, suffix) returns different output than answerQuery(concat)
+ */
+class AdaptiveCachedMembershipOracle<I, O> implements MembershipOracle<I, O> {
+    private final MembershipOracle<I, O> delegate;
+    // Use Pair<prefix, suffix> as cache key to correctly distinguish queries
+    private final Map<Pair<Word<I>, Word<I>>, O> cache;
+    private int cacheHits = 0;
+    private int cacheMisses = 0;
+    
+    public AdaptiveCachedMembershipOracle(MembershipOracle<I, O> delegate) {
+        this.delegate = delegate;
+        this.cache = new ConcurrentHashMap<>();
+    }
+    
+    @Override
+    public O answerQuery(Word<I> prefix, Word<I> suffix) {
+        // CRITICAL FIX: Use Pair(prefix, suffix) as cache key
+        // answerQuery("a", "b") != answerQuery("", "ab") in Mealy machines!
+        Pair<Word<I>, Word<I>> cacheKey = Pair.of(prefix, suffix);
+        
+        // Check cache first
+        if (cache.containsKey(cacheKey)) {
+            cacheHits++;
+            return cache.get(cacheKey);
+        }
+        
+        // Cache miss - query the delegate oracle
+        cacheMisses++;
+        O result = delegate.answerQuery(prefix, suffix);
+        cache.put(cacheKey, result);
+        return result;
+    }
+    
+    @Override
+    public O answerQuery(Word<I> query) {
+        // For single word query, prefix is empty (epsilon)
+        return answerQuery(Word.epsilon(), query);
+    }
+    
+    @Override
+    public void processQueries(Collection<? extends de.learnlib.api.query.Query<I, O>> queries) {
+        for (de.learnlib.api.query.Query<I, O> query : queries) {
+            O answer = answerQuery(query.getPrefix(), query.getSuffix());
+            query.answer(answer);
+        }
+    }
+    
+    public void printStatistics() {
+        int totalQueries = cacheHits + cacheMisses;
+        System.out.println("\n╔════════════════════════════════════════════════════════╗");
+        System.out.println("║              CACHE STATISTICS                          ║");
+        System.out.println("╠════════════════════════════════════════════════════════╣");
+        System.out.println("║  Total Queries:    " + String.format("%-30d", totalQueries) + "║");
+        System.out.println("║  Cache Hits:       " + String.format("%-30d", cacheHits) + "║");
+        System.out.println("║  Cache Misses:     " + String.format("%-30d", cacheMisses) + "║");
+        System.out.println("║  Cache Size:       " + String.format("%-30d", cache.size()) + "║");
+        if (totalQueries > 0) {
+            double hitRate = (cacheHits * 100.0) / totalQueries;
+            System.out.println("║  Hit Rate:         " + String.format("%-29.2f%%", hitRate) + "║");
+            System.out.println("║  Resets Saved:     " + String.format("%-30d", cacheHits) + "║");
+        }
+        System.out.println("╚════════════════════════════════════════════════════════╝\n");
+    }
+    
+    public int getCacheHits() {
+        return cacheHits;
+    }
+    
+    public int getCacheMisses() {
+        return cacheMisses;
+    }
+    
+    public int getCacheSize() {
+        return cache.size();
+    }
+    
+    public void clearCache() {
+        cache.clear();
+        cacheHits = 0;
+        cacheMisses = 0;
+    }
+}
 
 public class LearnAllProductsAdaptive {
 
@@ -80,6 +169,8 @@ public class LearnAllProductsAdaptive {
 	private static ArrayList<String> allInputAlphabets = new ArrayList<>();
 	private static Alphabet<String> product1Alphabet = null;
 	private static CompactMealy<String, Word<String>> previousHypothesis = null;
+	// Store cached oracle for statistics
+	private static AdaptiveCachedMembershipOracle<String, Word<Word<String>>> cachedOracle = null;
 
 	// Statistics storage
 	private static List<ProductMetrics> allProductMetrics = new ArrayList<>();
@@ -96,6 +187,11 @@ public class LearnAllProductsAdaptive {
 		int alphabetSize;
 		int newSymbolsAdded;
 		boolean isAdaptive;
+		// Cache statistics
+		int cacheHits;
+		int cacheMisses;
+		int cacheSize;
+		double cacheHitRate;
 	}
 
 	private static int ExtractValue(String string_1) {
@@ -445,7 +541,7 @@ public class LearnAllProductsAdaptive {
 		// Create header row
 		Row headerRow = sheet.createRow(0);
 		String[] headers = { "Product", "Rounds", "MQ Resets", "MQ Symbols", "EQ Resets", "EQ Symbols", "States",
-				"Alphabet Size", "New Symbols Added", "Learning Type" };
+				"Alphabet Size", "New Symbols Added", "Learning Type", "Cache Hits", "Cache Misses", "Cache Size", "Cache Hit Rate %" };
 		for (int i = 0; i < headers.length; i++) {
 			Cell cell = headerRow.createCell(i);
 			cell.setCellValue(headers[i]);
@@ -470,6 +566,10 @@ public class LearnAllProductsAdaptive {
 			row.createCell(7).setCellValue(metrics.alphabetSize);
 			row.createCell(8).setCellValue(metrics.newSymbolsAdded);
 			row.createCell(9).setCellValue(metrics.isAdaptive ? "Adaptive" : "Normal");
+			row.createCell(10).setCellValue(metrics.cacheHits);
+			row.createCell(11).setCellValue(metrics.cacheMisses);
+			row.createCell(12).setCellValue(metrics.cacheSize);
+			row.createCell(13).setCellValue(metrics.cacheHitRate);
 		}
 
 		// Auto-size columns
@@ -637,6 +737,11 @@ public class LearnAllProductsAdaptive {
 				MembershipOracle<String, Word<Word<String>>> mqOracle = new SULOracle<String, Word<String>>(
 						mq_sul_adaptive);
 
+				// 🔥 Enable Cache Layer for Adaptive Learning to reduce duplicate queries
+				cachedOracle = new AdaptiveCachedMembershipOracle<>(mqOracle);
+				mqOracle = cachedOracle;
+				System.out.println("✓ Cache layer enabled for Product " + (i + 1) + " - duplicate queries will be avoided");
+
 				IKearnsVaziraniMealyBuilder<Object, String, Word<String>> builder = new IKearnsVaziraniMealyBuilder<>();
 				builder.setOracle(mqOracle);
 				builder.setAlphabet(combinedAlphabet);
@@ -752,6 +857,20 @@ public class LearnAllProductsAdaptive {
 			metrics.alphabetSize = learner.get_alphabet_symbol().size();
 			metrics.newSymbolsAdded = (i == 0) ? 0 : (learner.get_alphabet_symbol().size() - productAlphabet.size());
 			metrics.isAdaptive = (i > 0);
+			
+			// Collect cache statistics for adaptive products
+			if (i > 0 && cachedOracle != null) {
+				metrics.cacheHits = cachedOracle.getCacheHits();
+				metrics.cacheMisses = cachedOracle.getCacheMisses();
+				metrics.cacheSize = cachedOracle.getCacheSize();
+				int totalCacheQueries = metrics.cacheHits + metrics.cacheMisses;
+				metrics.cacheHitRate = (totalCacheQueries > 0) ? (metrics.cacheHits * 100.0 / totalCacheQueries) : 0.0;
+			} else {
+				metrics.cacheHits = 0;
+				metrics.cacheMisses = 0;
+				metrics.cacheSize = 0;
+				metrics.cacheHitRate = 0.0;
+			}
 
 			allProductMetrics.add(metrics);
 
@@ -762,7 +881,15 @@ public class LearnAllProductsAdaptive {
 			System.out.println("States: " + metrics.states);
 			System.out.println("Alphabet: " + metrics.alphabetSize + " symbols");
 			if (i > 0) {
-				System.out.println("✓ Tree reused from previous product");
+				System.out.println("✓ Tree reused from Product 1 (FRESH)");
+				
+				// Display cache statistics
+				if (cachedOracle != null) {
+					cachedOracle.printStatistics();
+					System.out.println("Cache Performance:");
+					System.out.println("  • Saved " + metrics.cacheHits + " resets (" + String.format("%.1f%%", metrics.cacheHitRate) + " hit rate)");
+					System.out.println("  • Total unique queries cached: " + metrics.cacheSize);
+				}
 			}
 			System.out.println("====================================================\n");
 		}
@@ -782,7 +909,28 @@ public class LearnAllProductsAdaptive {
 		System.out.println("  • Product 1: Learned from scratch");
 		System.out.println("  • Products 2-15: Each used a FRESH Product 1 tree");
 		System.out.println("  • Product 1 was re-learned " + (productFiles.length - 1) + " times");
-		System.out.println("\nAll products learned successfully with tree reuse!");
+		System.out.println("  • Cache enabled for all adaptive products (2-15)");
+		
+		// Calculate total cache benefits
+		int totalCacheHits = 0;
+		int totalCacheMisses = 0;
+		for (ProductMetrics m : allProductMetrics) {
+			if (m.isAdaptive) {
+				totalCacheHits += m.cacheHits;
+				totalCacheMisses += m.cacheMisses;
+			}
+		}
+		
+		if (totalCacheHits + totalCacheMisses > 0) {
+			double overallHitRate = (totalCacheHits * 100.0) / (totalCacheHits + totalCacheMisses);
+			System.out.println("\nCache Performance Summary:");
+			System.out.println("  • Total queries across all adaptive products: " + (totalCacheHits + totalCacheMisses));
+			System.out.println("  • Total cache hits (resets saved): " + totalCacheHits);
+			System.out.println("  • Overall cache hit rate: " + String.format("%.2f%%", overallHitRate));
+			System.out.println("  • Total resets eliminated by caching: " + totalCacheHits);
+		}
+		
+		System.out.println("\nAll products learned successfully with tree reuse and caching!");
 	}
 
 	private static Options createOptions() {
