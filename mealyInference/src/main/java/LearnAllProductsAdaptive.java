@@ -362,7 +362,7 @@ public class LearnAllProductsAdaptive {
 				1000,  // smartMaxTests
 				3,     // smartMinLength
 				15,    // smartMaxLength
-				2,     // wpLookahead
+				1,     // wpLookahead - REDUCED from 2 to 1 (~50% fewer EQ tests)
 				rnd_seed
 			);
 		}
