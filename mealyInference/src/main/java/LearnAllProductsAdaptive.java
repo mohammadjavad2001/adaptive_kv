@@ -96,9 +96,11 @@ public class LearnAllProductsAdaptive {
 		long eqResets;
 		long eqSymbols;
 		int states;
+		int expectedStates;  // States in original model
 		int alphabetSize;
 		int newSymbolsAdded;
 		boolean isAdaptive;
+		boolean isEquivalent;  // Whether learned model equals original
 	}
 
 	private static int ExtractValue(String string_1) {
@@ -362,7 +364,7 @@ public class LearnAllProductsAdaptive {
 				1000,  // smartMaxTests
 				3,     // smartMinLength
 				15,    // smartMaxLength
-				1,     // wpLookahead - REDUCED from 2 to 1 (~50% fewer EQ tests)
+				2,     // wpLookahead - MUST be 2 for complete learning!
 				rnd_seed
 			);
 		}
@@ -472,8 +474,8 @@ public class LearnAllProductsAdaptive {
 
 		// Create header row
 		Row headerRow = sheet.createRow(0);
-		String[] headers = { "Product", "Rounds", "MQ Resets", "MQ Symbols", "EQ Resets", "EQ Symbols", "States",
-				"Alphabet Size", "New Symbols Added", "Learning Type" };
+		String[] headers = { "Product", "Rounds", "MQ Resets", "MQ Symbols", "EQ Resets", "EQ Symbols", 
+				"Learned States", "Expected States", "Equivalent", "Alphabet Size", "New Symbols Added", "Learning Type" };
 		for (int i = 0; i < headers.length; i++) {
 			Cell cell = headerRow.createCell(i);
 			cell.setCellValue(headers[i]);
@@ -495,9 +497,11 @@ public class LearnAllProductsAdaptive {
 			row.createCell(4).setCellValue(metrics.eqResets);
 			row.createCell(5).setCellValue(metrics.eqSymbols);
 			row.createCell(6).setCellValue(metrics.states);
-			row.createCell(7).setCellValue(metrics.alphabetSize);
-			row.createCell(8).setCellValue(metrics.newSymbolsAdded);
-			row.createCell(9).setCellValue(metrics.isAdaptive ? "Adaptive" : "Normal");
+			row.createCell(7).setCellValue(metrics.expectedStates);
+			row.createCell(8).setCellValue(metrics.isEquivalent ? "YES" : "NO");
+			row.createCell(9).setCellValue(metrics.alphabetSize);
+			row.createCell(10).setCellValue(metrics.newSymbolsAdded);
+			row.createCell(11).setCellValue(metrics.isAdaptive ? "Adaptive" : "Normal");
 		}
 
 		// Auto-size columns
@@ -802,6 +806,36 @@ public class LearnAllProductsAdaptive {
 			StatisticSUL<String, Word<String>> currentMqRst = (i == 0) ? mq_rst : mq_rst_adaptive;
 			StatisticSUL<String, Word<String>> currentMqSym = (i == 0) ? mq_sym : mq_sym_adaptive;
 
+			// Get final hypothesis for equivalence checking
+			MealyMachine<?, String, ?, Word<String>> finalHyp = experiment.getFinalHypothesis();
+			
+			// ═══════════════════════════════════════════════════════════════════
+			// EQUIVALENCE CHECK: Compare learned model with original mealyMachine
+			// ═══════════════════════════════════════════════════════════════════
+			int expectedStates = mealyMachine.size();
+			int learnedStates = finalHyp.getStates().size();
+			
+			// Check equivalence using DeterministicEquivalenceTest
+			// findSeparatingWord returns null if models are equivalent
+			Word<String> separatingWord = DeterministicEquivalenceTest.findSeparatingWord(
+				mealyMachine, finalHyp, productAlphabet);
+			boolean isEquivalent = (separatingWord == null);
+			
+			System.out.println("\n╔═══════════════════════════════════════════════════════════╗");
+			System.out.println("║  EQUIVALENCE CHECK: " + productFile.getName());
+			System.out.println("╠═══════════════════════════════════════════════════════════╣");
+			System.out.println("║  Original model states:  " + expectedStates);
+			System.out.println("║  Learned model states:   " + learnedStates);
+			if (isEquivalent) {
+				System.out.println("║  ✓ EQUIVALENT - Model learned correctly!");
+			} else {
+				System.out.println("║  ✗ NOT EQUIVALENT - Model incomplete!");
+				System.out.println("║  Separating word: " + separatingWord);
+				System.out.println("║  Expected output: " + mealyMachine.computeOutput(separatingWord));
+				System.out.println("║  Learned output:  " + finalHyp.computeOutput(separatingWord));
+			}
+			System.out.println("╚═══════════════════════════════════════════════════════════╝");
+
 			ProductMetrics metrics = new ProductMetrics();
 			metrics.productName = productFile.getName();
 			metrics.rounds = (int) experiment.getRounds().getCount();
@@ -809,10 +843,12 @@ public class LearnAllProductsAdaptive {
 			metrics.mqSymbols = ExtractValue(currentMqSym.getStatisticalData().getSummary());
 			metrics.eqResets = ExtractValue(eq_rst.getStatisticalData().getSummary());
 			metrics.eqSymbols = ExtractValue(eq_sym.getStatisticalData().getSummary());
-			metrics.states = experiment.getFinalHypothesis().getStates().size();
+			metrics.states = learnedStates;
+			metrics.expectedStates = expectedStates;
 			metrics.alphabetSize = learner.get_alphabet_symbol().size();
 			metrics.newSymbolsAdded = (i == 0) ? 0 : (learner.get_alphabet_symbol().size() - productAlphabet.size());
 			metrics.isAdaptive = (i > 0);
+			metrics.isEquivalent = isEquivalent;
 
 			allProductMetrics.add(metrics);
 
@@ -820,7 +856,8 @@ public class LearnAllProductsAdaptive {
 			System.out.println("Rounds: " + metrics.rounds);
 			System.out.println("MQ Resets: " + metrics.mqResets + ", Symbols: " + metrics.mqSymbols);
 			System.out.println("EQ Resets: " + metrics.eqResets + ", Symbols: " + metrics.eqSymbols);
-			System.out.println("States: " + metrics.states);
+			System.out.println("States: " + metrics.states + "/" + metrics.expectedStates + 
+				(metrics.isEquivalent ? " ✓" : " ✗ INCOMPLETE"));
 			System.out.println("Alphabet: " + metrics.alphabetSize + " symbols");
 			if (i > 0) {
 				System.out.println("✓ Tree reused from previous product");
@@ -839,16 +876,45 @@ public class LearnAllProductsAdaptive {
 		System.out.println("╚════════════════════════════════════════════════════════════════╝");
 		System.out.println("\nTotal products learned: " + allProductMetrics.size());
 		System.out.println("Results saved to: " + excelFilename);
+		
+		// Count equivalence results
+		int equivalentCount = 0;
+		int notEquivalentCount = 0;
+		List<String> failedProducts = new ArrayList<>();
+		for (ProductMetrics m : allProductMetrics) {
+			if (m.isEquivalent) {
+				equivalentCount++;
+			} else {
+				notEquivalentCount++;
+				failedProducts.add(m.productName + " (learned: " + m.states + ", expected: " + m.expectedStates + ")");
+			}
+		}
+		
+		System.out.println("\n╔════════════════════════════════════════════════════════════════╗");
+		System.out.println("║         EQUIVALENCE CHECK RESULTS                              ║");
+		System.out.println("╠════════════════════════════════════════════════════════════════╣");
+		System.out.println("║  ✓ Equivalent (correctly learned): " + equivalentCount);
+		System.out.println("║  ✗ Not Equivalent (incomplete):    " + notEquivalentCount);
+		System.out.println("╚════════════════════════════════════════════════════════════════╝");
+		
+		if (notEquivalentCount > 0) {
+			System.out.println("\n⚠️  FAILED PRODUCTS (not learned completely):");
+			for (String failed : failedProducts) {
+				System.out.println("   - " + failed);
+			}
+		} else {
+			System.out.println("\n✓ All products learned correctly!");
+		}
+		
 		System.out.println("\nStrategy Used:");
 		System.out.println("  • Product 1: Learned from scratch with WpMethod EQ Oracle");
 		System.out.println("  • Products 2-15: Each used a FRESH Product 1 tree");
 		System.out.println("  • Product 1 was re-learned " + (productFiles.length - 1) + " times");
 		System.out.println("\nEQ Oracle Strategy:");
-		System.out.println("  • Product 1: Standard WpMethod");
+		System.out.println("  • Product 1: Standard WpMethod (lookahead=2)");
 		System.out.println("  • Products 2+: HybridAdaptiveEQOracle");
 		System.out.println("    - Phase 1: Smart Adaptive Testing (uses previous products)");
-		System.out.println("    - Phase 2: WpMethod fallback (exhaustive)");
-		System.out.println("\nAll products learned successfully with adaptive tree reuse!");
+		System.out.println("    - Phase 2: WpMethod fallback (lookahead=2)");
 	}
 
 	private static Options createOptions() {
