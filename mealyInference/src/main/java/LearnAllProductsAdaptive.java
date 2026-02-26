@@ -72,6 +72,251 @@ import de.learnlib.filter.statistic.oracle.CounterSymbolQueryOracle;
 // Apache POI imports for Excel
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Helper class to calculate D' (D-prime) metric for product learning order.
+ * D' = Sum of alphabet sizes for all NEW features added by this product.
+ * Lower D' = simpler product (learn first)
+ */
+class ProductOrderCalculator {
+	static class ProductInfo {
+		int index;
+		File file;
+		Set<String> alphabet;
+		double dPrime;  // D' metric
+		
+		ProductInfo(int index, File file, Set<String> alphabet) {
+			this.index = index;
+			this.file = file;
+			this.alphabet = alphabet;
+			this.dPrime = 0.0;
+		}
+	}
+	
+	/**
+	 * Calculate optimal learning order using D' heuristic from paper.
+	 * D' = sum of alphabet sizes for new features in each product.
+	 */
+	static List<ProductInfo> calculateOptimalOrder(File[] productFiles) throws Exception {
+		System.out.println("\n╔════════════════════════════════════════════════════════════════╗");
+		System.out.println("║     CALCULATING OPTIMAL PRODUCT LEARNING ORDER (D')           ║");
+		System.out.println("╚════════════════════════════════════════════════════════════════╝\n");
+		
+		// Load all product alphabets
+		List<ProductInfo> products = new ArrayList<>();
+		for (int i = 0; i < productFiles.length; i++) {
+			CompactMealy<String, Word<String>> mealy = loadMealyForOrder(productFiles[i]);
+			Set<String> alphabet = new HashSet<>();
+			for (String symbol : mealy.getInputAlphabet()) {
+				alphabet.add(symbol);
+			}
+			products.add(new ProductInfo(i, productFiles[i], alphabet));
+		}
+		
+		// Find product with smallest alphabet (will be first)
+		ProductInfo firstProduct = products.stream()
+			.min(Comparator.comparingInt(p -> p.alphabet.size()))
+			.orElse(products.get(0));
+		
+		System.out.println("✓ First product (smallest alphabet): " + firstProduct.file.getName() + 
+			" with " + firstProduct.alphabet.size() + " symbols");
+		
+		// Calculate D' for remaining products
+		List<ProductInfo> orderedProducts = new ArrayList<>();
+		orderedProducts.add(firstProduct);
+		Set<String> learnedSymbols = new HashSet<>(firstProduct.alphabet);
+		
+		List<ProductInfo> remaining = new ArrayList<>(products);
+		remaining.remove(firstProduct);
+		
+		while (!remaining.isEmpty()) {
+			// Calculate D' for each remaining product
+			for (ProductInfo product : remaining) {
+				// D' = number of NEW symbols this product adds
+				product.dPrime = 0;
+				for (String symbol : product.alphabet) {
+					if (!learnedSymbols.contains(symbol)) {
+						product.dPrime++;  // Count new symbols (complexity = 1 per symbol)
+					}
+				}
+			}
+			
+			// Sort by D' (ascending) - learn simpler products first
+			remaining.sort(Comparator.comparingDouble(p -> p.dPrime));
+			
+			// Take the product with lowest D'
+			ProductInfo nextProduct = remaining.remove(0);
+			orderedProducts.add(nextProduct);
+			
+			// Update learned symbols
+			learnedSymbols.addAll(nextProduct.alphabet);
+			
+			System.out.println("  Product " + orderedProducts.size() + ": " + nextProduct.file.getName() + 
+				" (D'=" + String.format("%.0f", nextProduct.dPrime) + 
+				", alphabet=" + nextProduct.alphabet.size() + 
+				", new symbols=" + (int)nextProduct.dPrime + ")");
+		}
+		
+		System.out.println("\n✓ Optimal learning order calculated using D' heuristic");
+		System.out.println("  Strategy: Learn products with fewer NEW symbols first\n");
+		
+		return orderedProducts;
+	}
+	
+	private static CompactMealy<String, Word<String>> loadMealyForOrder(File f) throws Exception {
+		InputModelDeserializer<String, CompactMealy<String, Word<String>>> parser = DOTParsers
+				.mealy(LearnAllProductsAdaptive.MEALY_EDGE_WORD_STR_PARSER);
+		try (InputStream is = new FileInputStream(f)) {
+			return parser.readModel(is).model;
+		}
+	}
+}
+
+/**
+ * Cached Membership Oracle for reusing query results and reducing duplicate queries.
+ * This significantly improves performance in adaptive learning scenarios.
+ * 
+ * CRITICAL: Cache key uses Pair(prefix, suffix) NOT concat(prefix, suffix)
+ * because answerQuery(prefix, suffix) returns different output than answerQuery(concat)
+ */
+class AdaptiveCachedMembershipOracle<I, O> implements MembershipOracle<I, O> {
+    private MembershipOracle<I, O> delegate;
+    // Use Pair<prefix, suffix> as cache key to correctly distinguish queries
+    private final Map<Pair<Word<I>, Word<I>>, O> cache;
+    private int cacheHits = 0;
+    private int cacheMisses = 0;
+    private int totalCacheHitsAllProducts = 0;  // Track across all products
+    private int totalCacheMissesAllProducts = 0;
+    
+    public AdaptiveCachedMembershipOracle(MembershipOracle<I, O> delegate) {
+        this.delegate = delegate;
+        this.cache = new ConcurrentHashMap<>();
+    }
+    
+    /**
+     * Update the delegate oracle while preserving the cache.
+     * This allows reusing cached query results across different products.
+     */
+    public void setDelegate(MembershipOracle<I, O> newDelegate) {
+        this.delegate = newDelegate;
+        // Accumulate stats before resetting per-product counters
+        totalCacheHitsAllProducts += cacheHits;
+        totalCacheMissesAllProducts += cacheMisses;
+        // Reset per-product counters
+        cacheHits = 0;
+        cacheMisses = 0;
+        System.out.println("✓ Cache delegate updated - preserving " + cache.size() + " cached entries");
+    }
+    
+    @Override
+    public O answerQuery(Word<I> prefix, Word<I> suffix) {
+        // CRITICAL FIX: Use Pair(prefix, suffix) as cache key
+        // answerQuery("a", "b") != answerQuery("", "ab") in Mealy machines!
+        Pair<Word<I>, Word<I>> cacheKey = Pair.of(prefix, suffix);
+        
+        // Check cache first
+        if (cache.containsKey(cacheKey)) {
+            cacheHits++;
+            return cache.get(cacheKey);
+        }
+        
+        // Cache miss - query the delegate oracle
+        cacheMisses++;
+        O result = delegate.answerQuery(prefix, suffix);
+        cache.put(cacheKey, result);
+        return result;
+    }
+    
+    @Override
+    public O answerQuery(Word<I> query) {
+        // For single word query, prefix is empty (epsilon)
+        return answerQuery(Word.epsilon(), query);
+    }
+    
+    @Override
+    public void processQueries(Collection<? extends de.learnlib.api.query.Query<I, O>> queries) {
+        for (de.learnlib.api.query.Query<I, O> query : queries) {
+            O answer = answerQuery(query.getPrefix(), query.getSuffix());
+            query.answer(answer);
+        }
+    }
+    
+    public void printStatistics() {
+        int totalQueries = cacheHits + cacheMisses;
+        int allTimeHits = totalCacheHitsAllProducts + cacheHits;
+        int allTimeMisses = totalCacheMissesAllProducts + cacheMisses;
+        int allTimeQueries = allTimeHits + allTimeMisses;
+        
+        System.out.println("\n╔════════════════════════════════════════════════════════╗");
+        System.out.println("║          CACHE STATISTICS (THIS PRODUCT)               ║");
+        System.out.println("╠════════════════════════════════════════════════════════╣");
+        System.out.println("║  Queries:          " + String.format("%-30d", totalQueries) + "║");
+        System.out.println("║  Cache Hits:       " + String.format("%-30d", cacheHits) + "║");
+        System.out.println("║  Cache Misses:     " + String.format("%-30d", cacheMisses) + "║");
+        if (totalQueries > 0) {
+            double hitRate = (cacheHits * 100.0) / totalQueries;
+            System.out.println("║  Hit Rate:         " + String.format("%-29.2f%%", hitRate) + "║");
+        }
+        System.out.println("╠════════════════════════════════════════════════════════╣");
+        System.out.println("║          CACHE STATISTICS (ALL PRODUCTS)               ║");
+        System.out.println("╠════════════════════════════════════════════════════════╣");
+        System.out.println("║  Total Queries:    " + String.format("%-30d", allTimeQueries) + "║");
+        System.out.println("║  Total Hits:       " + String.format("%-30d", allTimeHits) + "║");
+        System.out.println("║  Total Misses:     " + String.format("%-30d", allTimeMisses) + "║");
+        System.out.println("║  Cache Size:       " + String.format("%-30d", cache.size()) + "║");
+        if (allTimeQueries > 0) {
+            double allTimeHitRate = (allTimeHits * 100.0) / allTimeQueries;
+            System.out.println("║  Overall Hit Rate: " + String.format("%-29.2f%%", allTimeHitRate) + "║");
+            System.out.println("║  Total Resets Saved: " + String.format("%-27d", allTimeHits) + "║");
+        }
+        System.out.println("╚════════════════════════════════════════════════════════╝\n");
+    }
+    
+    public int getCacheHits() {
+        return cacheHits;
+    }
+    
+    public int getCacheMisses() {
+        return cacheMisses;
+    }
+    
+    public int getCacheSize() {
+        return cache.size();
+    }
+    
+    public int getTotalCacheHits() {
+        return totalCacheHitsAllProducts + cacheHits;
+    }
+    
+    public int getTotalCacheMisses() {
+        return totalCacheMissesAllProducts + cacheMisses;
+    }
+    
+    public double getTotalHitRate() {
+        int total = getTotalCacheHits() + getTotalCacheMisses();
+        return total > 0 ? (getTotalCacheHits() * 100.0) / total : 0.0;
+    }
+    
+    public void clearCache() {
+        cache.clear();
+        cacheHits = 0;
+        cacheMisses = 0;
+        totalCacheHitsAllProducts = 0;
+        totalCacheMissesAllProducts = 0;
+    }
+    
+    /**
+     * Reset per-product counters without clearing the cache.
+     * Use this when starting a new product to track per-product stats.
+     */
+    public void resetProductCounters() {
+        totalCacheHitsAllProducts += cacheHits;
+        totalCacheMissesAllProducts += cacheMisses;
+        cacheHits = 0;
+        cacheMisses = 0;
+    }
+}
 
 public class LearnAllProductsAdaptive {
 
@@ -80,7 +325,12 @@ public class LearnAllProductsAdaptive {
 	private static ArrayList<String> allInputAlphabets = new ArrayList<>();
 	private static Alphabet<String> product1Alphabet = null;
 	private static CompactMealy<String, Word<String>> previousHypothesis = null;
+	// Store cached oracle for statistics
+	private static AdaptiveCachedMembershipOracle<String, Word<Word<String>>> cachedOracle = null;
 
+	// Storage for previous products (for HybridAdaptiveEQOracle)
+	
+	private static List<MealyMachine<?, String, ?, Word<String>>> learnedProducts = new ArrayList<>();
 	// Statistics storage
 	private static List<ProductMetrics> allProductMetrics = new ArrayList<>();
 
@@ -93,9 +343,16 @@ public class LearnAllProductsAdaptive {
 		long eqResets;
 		long eqSymbols;
 		int states;
+		int expectedStates;  // States in original model
 		int alphabetSize;
 		int newSymbolsAdded;
 		boolean isAdaptive;
+		boolean isEquivalent;  // Whether learned model equals original
+		// Cache statistics
+		int cacheHits;
+		int cacheMisses;
+		int cacheSize;
+		double cacheHitRate;
 	}
 
 	private static int ExtractValue(String string_1) {
@@ -337,10 +594,34 @@ public class LearnAllProductsAdaptive {
 
 	private static EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> buildEqOracle(
 			Random rnd_seed, CommandLine line, CompactMealy<String, Word<String>> mealyss,
-			SUL<String, Word<String>> eq_sul) {
+			SUL<String, Word<String>> eq_sul, Alphabet<String> currentAlphabet, Set<String> newSymbols, 
+			boolean useHybridOracle) {
 		MembershipOracle<String, Word<Word<String>>> oracleForEQoracle = new SULOracle<>(eq_sul);
 
 		EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle;
+		
+		// Use HybridAdaptiveEQOracle for adaptive learning (Product 2+)
+		if (useHybridOracle && !learnedProducts.isEmpty()) {
+			System.out.println("\n╔══════════════════════════════════════════════════════════╗");
+			System.out.println("║  Using HYBRID ADAPTIVE EQ ORACLE                         ║");
+			System.out.println("║  Previous products: " + learnedProducts.size() + "                                    ║");
+			System.out.println("║  New symbols in this product: " + newSymbols.size() + "                       ║");
+			System.out.println("╚══════════════════════════════════════════════════════════╝");
+			
+			return new HybridAdaptiveEQOracle<>(
+				oracleForEQoracle,
+				learnedProducts,
+				currentAlphabet,
+				newSymbols,
+				1000,  // smartMaxTests
+				3,     // smartMinLength
+				15,    // smartMaxLength
+				2,     // wpLookahead - MUST be 2 for complete learning!
+				rnd_seed
+			);
+		}
+		
+		// Default behavior for Product 1 or when not using hybrid oracle
 		if (!line.hasOption(EQ)) {
 			return new WpMethodEQOracle<>(oracleForEQoracle, 2);
 		}
@@ -412,8 +693,9 @@ public class LearnAllProductsAdaptive {
 		StatisticSUL<String, Word<String>> eq_rst = new ResetCounterSUL<>("EQ", eq_sym);
 		SUL<String, Word<String>> eq_sul = eq_rst;
 		
+		Set<String> emptyNewSymbols = new HashSet<>();
 		EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = buildEqOracle(
-				rnd_seed, line, mealyMachine, eq_sul);
+				rnd_seed, line, mealyMachine, eq_sul, productAlphabet, emptyNewSymbols, false);
 		
 		Experiment.MealyExperiment<String, Word<String>> experiment = new Experiment.MealyExperiment<String, Word<String>>(
 				learner, eqOracle, learner.get_alphabet_symbol());
@@ -444,8 +726,9 @@ public class LearnAllProductsAdaptive {
 
 		// Create header row
 		Row headerRow = sheet.createRow(0);
-		String[] headers = { "Product", "Rounds", "MQ Resets", "MQ Symbols", "EQ Resets", "EQ Symbols", "States",
-				"Alphabet Size", "New Symbols Added", "Learning Type" };
+		String[] headers = { "Product", "Rounds", "MQ Resets", "MQ Symbols", "EQ Resets", "EQ Symbols", 
+				"Learned States", "Expected States", "Equivalent", "Alphabet Size", "New Symbols Added", "Learning Type",
+				"Cache Hits", "Cache Misses", "Cache Size", "Cache Hit Rate %" };
 		for (int i = 0; i < headers.length; i++) {
 			Cell cell = headerRow.createCell(i);
 			cell.setCellValue(headers[i]);
@@ -467,9 +750,15 @@ public class LearnAllProductsAdaptive {
 			row.createCell(4).setCellValue(metrics.eqResets);
 			row.createCell(5).setCellValue(metrics.eqSymbols);
 			row.createCell(6).setCellValue(metrics.states);
-			row.createCell(7).setCellValue(metrics.alphabetSize);
-			row.createCell(8).setCellValue(metrics.newSymbolsAdded);
-			row.createCell(9).setCellValue(metrics.isAdaptive ? "Adaptive" : "Normal");
+			row.createCell(7).setCellValue(metrics.expectedStates);
+			row.createCell(8).setCellValue(metrics.isEquivalent ? "YES" : "NO");
+			row.createCell(9).setCellValue(metrics.alphabetSize);
+			row.createCell(10).setCellValue(metrics.newSymbolsAdded);
+			row.createCell(11).setCellValue(metrics.isAdaptive ? "Adaptive" : "Normal");
+			row.createCell(12).setCellValue(metrics.cacheHits);
+			row.createCell(13).setCellValue(metrics.cacheMisses);
+			row.createCell(14).setCellValue(metrics.cacheSize);
+			row.createCell(15).setCellValue(metrics.cacheHitRate);
 		}
 
 		// Auto-size columns
@@ -494,37 +783,34 @@ public class LearnAllProductsAdaptive {
 
 		System.out.println("╔════════════════════════════════════════════════════════════════╗");
 		System.out.println("║     ADAPTIVE LEARNING - ALL MINEPUMP_SPL PRODUCTS              ║");
+		System.out.println("║     WITH OPTIMAL LEARNING ORDER (D' HEURISTIC)                 ║");
 		System.out.println("╚════════════════════════════════════════════════════════════════╝");
 		System.out.println("\nFound " + productFiles.length + " products to learn\n");
-		System.out.println("Strategy: Learn Product 1 fresh before each new product");
-		System.out.println("          Then reuse Product 1's tree/hypothesis for that product\n");
+		
+		// Calculate optimal learning order using D' heuristic
+		List<ProductOrderCalculator.ProductInfo> orderedProducts = 
+			ProductOrderCalculator.calculateOptimalOrder(productFiles);
+		
+		System.out.println("Strategy: Sequential tree reuse in optimal order");
+		System.out.println("          Product " + orderedProducts.get(0).file.getName() + " → " +
+			orderedProducts.get(1).file.getName() + " → " +
+			orderedProducts.get(2).file.getName() + " → ...");
+		System.out.println("          Each product uses the previous product's tree\n");
 
-		// Learn each product with fresh Product 1 tree reuse
-		for (int i = 0; i < productFiles.length; i++) {
-			
-			// For products 2-15: Learn Product 1 fresh first to get clean tree/hypothesis
-			if (i > 0) {
-				System.out.println("\n" + "▼".repeat(70));
-				System.out.println("  PREPARING TO LEARN PRODUCT " + (i + 1));
-				System.out.println("  Step 1: Learn Product 1 fresh to get tree/hypothesis");
-				System.out.println("▼".repeat(70));
-				
-				Product1Result product1Result = learnProduct1Fresh(productFiles[0], args);
-				tree_round2 = product1Result.tree;
-				previousHypothesis = product1Result.hypothesis;
-				product1Alphabet = product1Result.alphabet;
-				
-				// Reset alphabet collection to Product 1's alphabet
-				allInputAlphabets.clear();
-				for (String symbol : product1Alphabet) {
-					allInputAlphabets.add(symbol);
-				}
-				
-				System.out.println("  Step 2: Now learn Product " + (i + 1) + " using Product 1's tree");
-			}
-			File productFile = productFiles[i];
+		// Learn each product in optimal order with sequential tree reuse
+		for (int i = 0; i < orderedProducts.size(); i++) {
+			ProductOrderCalculator.ProductInfo productInfo = orderedProducts.get(i);
+			File productFile = productInfo.file;
+			int originalIndex = productInfo.index;
 			System.out.println("\n" + "=".repeat(70));
-			System.out.println("LEARNING PRODUCT " + (i + 1) + "/" + productFiles.length + ": " + productFile.getName());
+			System.out.println("LEARNING PRODUCT " + (i + 1) + "/" + orderedProducts.size() + ": " + productFile.getName());
+			System.out.println("Original Index: " + originalIndex + " | Optimal Order Position: " + (i + 1));
+			System.out.println("D' = " + String.format("%.0f", productInfo.dPrime) + " (new symbols added)");
+			if (i > 0) {
+				System.out.println("Using tree from: " + orderedProducts.get(i-1).file.getName());
+			} else {
+				System.out.println("Learning from scratch (first product in optimal order)");
+			}
 			System.out.println("=".repeat(70));
 
 			CompactMealy<String, Word<String>> mealyMachine = LoadMealy(productFile);
@@ -553,6 +839,9 @@ public class LearnAllProductsAdaptive {
 			Alphabet<String> productAlphabet = mealyMachine.getInputAlphabet();
 			System.out.println("\nProduct alphabet contains " + productAlphabet.size() + " symbols");
 
+			// Track new symbols for this product
+			Set<String> newSymbols = new HashSet<>();
+			
 			// Manage alphabet collection
 			if (i == 0) {
 				allInputAlphabets.clear();
@@ -563,18 +852,20 @@ public class LearnAllProductsAdaptive {
 				for (String symbol : productAlphabet) {
 					if (!allInputAlphabets.contains(symbol)) {
 						allInputAlphabets.add(symbol);
+						newSymbols.add(symbol);
 					}
 				}
 			}
+			
+			System.out.println("New symbols in this product: " + newSymbols.size());
 
 			Alphabet<String> combinedAlphabet = Alphabets.fromCollection(allInputAlphabets);
 			IKearnsVaziraniMealy<String, Word<String>> learner = null;
 
 			StatisticSUL<String, Word<String>> mq_sym_adaptive = null;
 			StatisticSUL<String, Word<String>> mq_rst_adaptive = null;
-
 			if (i == 0) {
-				// Product 0: Initialize from scratch
+				// First product in optimal order: Initialize from scratch
 				product1Alphabet = new GrowingMapAlphabet<>(Alphabets.fromCollection(allInputAlphabets));
 				MembershipOracle<String, Word<Word<String>>> mqOracle = new SULOracle<String, Word<String>>(mq_sul);
 				IKearnsVaziraniMealyBuilder<Object, String, Word<String>> builder = new IKearnsVaziraniMealyBuilder<>();
@@ -582,10 +873,11 @@ public class LearnAllProductsAdaptive {
 				builder.setAlphabet(combinedAlphabet);
 				learner = (IKearnsVaziraniMealy<String, Word<String>>) builder.withAlphabet(product1Alphabet)
 						.create(null, null);
-				System.out.println("Learning from scratch (Product 1)");
+				System.out.println("Learning from scratch (first product in optimal order)");
 			} else {
-				// Products 2+: Adaptive learning with tree reuse
-				System.out.println("Adaptive learning (reusing Product 1's FRESH tree)");
+				// Subsequent products: Adaptive learning with tree reuse from PREVIOUS product
+				System.out.println("Adaptive learning (reusing previous product's tree)");
+				System.out.println("Previous product: " + orderedProducts.get(i-1).file.getName());
 				
 				// Safety check: ensure tree exists
 				if (tree_round2 == null || previousHypothesis == null) {
@@ -636,6 +928,18 @@ public class LearnAllProductsAdaptive {
 				SUL<String, Word<String>> mq_sul_adaptive = mq_rst_adaptive;
 				MembershipOracle<String, Word<Word<String>>> mqOracle = new SULOracle<String, Word<String>>(
 						mq_sul_adaptive);
+
+				// 🔥 PERSISTENT CACHE: Reuse cache across products for better performance
+				if (cachedOracle == null) {
+					// First adaptive product - create new cache
+					cachedOracle = new AdaptiveCachedMembershipOracle<>(mqOracle);
+					System.out.println("✓ NEW cache layer created for Product " + (i + 1));
+				} else {
+					// Subsequent products - reuse existing cache with new delegate
+					cachedOracle.setDelegate(mqOracle);
+					System.out.println("✓ REUSING cache layer for Product " + (i + 1) + " (preserving " + cachedOracle.getCacheSize() + " cached queries)");
+				}
+				mqOracle = cachedOracle;
 
 				IKearnsVaziraniMealyBuilder<Object, String, Word<String>> builder = new IKearnsVaziraniMealyBuilder<>();
 				builder.setOracle(mqOracle);
@@ -712,8 +1016,13 @@ public class LearnAllProductsAdaptive {
 			StatisticSUL<String, Word<String>> eq_rst = new ResetCounterSUL<>("EQ", eq_sym);
 			SUL<String, Word<String>> eq_sul = eq_rst;
 
+			// Use HybridAdaptiveEQOracle for products 2+ (i > 0)
+			boolean useHybridOracle = (i > 0);
 			EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = buildEqOracle(
-					rnd_seed, line, updatedMealy, eq_sul);
+					rnd_seed, line, updatedMealy, eq_sul, 
+					(i == 0) ? productAlphabet : learner.get_alphabet_symbol(), 
+					newSymbols, 
+					useHybridOracle);
 			Experiment.MealyExperiment<String, Word<String>> experiment = new Experiment.MealyExperiment<String, Word<String>>(
 					learner, eqOracle, learner.get_alphabet_symbol());
 
@@ -724,34 +1033,97 @@ public class LearnAllProductsAdaptive {
 				experiment.run(false, null);
 			}
 
-		// For Product 1, save tree and hypothesis for immediate next product
-		// For other products, we'll re-learn Product 1 fresh before the next one
+		// Save tree and hypothesis for next product in optimal order
+		tree_round2 = experiment.getDiscrtree();
+		if (tree_round2 == null) {
+			tree_round2 = learner.getDiscriminationTree();
+			System.out.println("WARNING: Got tree from learner instead of experiment");
+		}
+		product1Alphabet = (GrowingAlphabet<String>) learner.get_alphabet_symbol();
+		previousHypothesis = (CompactMealy<String, Word<String>>) experiment.getFinalHypothesis();
+		
+		// Update learnedProducts list for HybridAdaptiveEQOracle
 		if (i == 0) {
-			tree_round2 = experiment.getDiscrtree();
-			if (tree_round2 == null) {
-				tree_round2 = learner.getDiscriminationTree();
-				System.out.println("WARNING: Got tree from learner instead of experiment");
+			// First product: initialize list
+			learnedProducts.clear();
+			learnedProducts.add(previousHypothesis);
+			System.out.println("✓ Saved tree and hypothesis for next product: " + 
+				(i+1 < orderedProducts.size() ? orderedProducts.get(i+1).file.getName() : "N/A"));
+		} else {
+			// Subsequent products: update list
+			CompactMealy<String, Word<String>> finalHypothesis = (CompactMealy<String, Word<String>>) experiment.getFinalHypothesis();
+			
+			if (learnedProducts.isEmpty() || learnedProducts.size() == 1) {
+				learnedProducts.add(finalHypothesis);
+			} else {
+				learnedProducts.set(1, finalHypothesis);
 			}
-			product1Alphabet = (GrowingAlphabet<String>) learner.get_alphabet_symbol();
-			previousHypothesis = (CompactMealy<String, Word<String>>) experiment.getFinalHypothesis();
-			System.out.println("✓ Saved Product 1's tree and hypothesis for Product 2");
+			
+			System.out.println("✓ Saved tree and hypothesis for next product: " + 
+				(i+1 < orderedProducts.size() ? orderedProducts.get(i+1).file.getName() : "N/A"));
 		}
 
 			// Collect metrics
 			StatisticSUL<String, Word<String>> currentMqRst = (i == 0) ? mq_rst : mq_rst_adaptive;
 			StatisticSUL<String, Word<String>> currentMqSym = (i == 0) ? mq_sym : mq_sym_adaptive;
 
+			// Get final hypothesis for equivalence checking
+			MealyMachine<?, String, ?, Word<String>> finalHyp = experiment.getFinalHypothesis();
+			
+			// ═══════════════════════════════════════════════════════════════════
+			// EQUIVALENCE CHECK: Compare learned model with original mealyMachine
+			// ═══════════════════════════════════════════════════════════════════
+			int expectedStates = mealyMachine.size();
+			int learnedStates = finalHyp.getStates().size();
+			
+			// Check equivalence using DeterministicEquivalenceTest
+			// findSeparatingWord returns null if models are equivalent
+			Word<String> separatingWord = DeterministicEquivalenceTest.findSeparatingWord(
+				mealyMachine, finalHyp, productAlphabet);
+			boolean isEquivalent = (separatingWord == null);
+			
+			System.out.println("\n╔═══════════════════════════════════════════════════════════╗");
+			System.out.println("║  EQUIVALENCE CHECK: " + productFile.getName());
+			System.out.println("╠═══════════════════════════════════════════════════════════╣");
+			System.out.println("║  Original model states:  " + expectedStates);
+			System.out.println("║  Learned model states:   " + learnedStates);
+			if (isEquivalent) {
+				System.out.println("║  ✓ EQUIVALENT - Model learned correctly!");
+			} else {
+				System.out.println("║  ✗ NOT EQUIVALENT - Model incomplete!");
+				System.out.println("║  Separating word: " + separatingWord);
+				System.out.println("║  Expected output: " + mealyMachine.computeOutput(separatingWord));
+				System.out.println("║  Learned output:  " + finalHyp.computeOutput(separatingWord));
+			}
+			System.out.println("╚═══════════════════════════════════════════════════════════╝");
+
 			ProductMetrics metrics = new ProductMetrics();
-			metrics.productName = productFile.getName();
+			metrics.productName = productFile.getName() + " (Order:" + (i+1) + ", D':" + String.format("%.0f", productInfo.dPrime) + ")";
 			metrics.rounds = (int) experiment.getRounds().getCount();
 			metrics.mqResets = ExtractValue(currentMqRst.getStatisticalData().getSummary());
 			metrics.mqSymbols = ExtractValue(currentMqSym.getStatisticalData().getSummary());
 			metrics.eqResets = ExtractValue(eq_rst.getStatisticalData().getSummary());
 			metrics.eqSymbols = ExtractValue(eq_sym.getStatisticalData().getSummary());
-			metrics.states = experiment.getFinalHypothesis().getStates().size();
+			metrics.states = learnedStates;
+			metrics.expectedStates = expectedStates;
 			metrics.alphabetSize = learner.get_alphabet_symbol().size();
 			metrics.newSymbolsAdded = (i == 0) ? 0 : (learner.get_alphabet_symbol().size() - productAlphabet.size());
 			metrics.isAdaptive = (i > 0);
+			metrics.isEquivalent = isEquivalent;
+			
+			// Collect cache statistics for adaptive products
+			if (i > 0 && cachedOracle != null) {
+				metrics.cacheHits = cachedOracle.getCacheHits();
+				metrics.cacheMisses = cachedOracle.getCacheMisses();
+				metrics.cacheSize = cachedOracle.getCacheSize();
+				int totalCacheQueries = metrics.cacheHits + metrics.cacheMisses;
+				metrics.cacheHitRate = (totalCacheQueries > 0) ? (metrics.cacheHits * 100.0 / totalCacheQueries) : 0.0;
+			} else {
+				metrics.cacheHits = 0;
+				metrics.cacheMisses = 0;
+				metrics.cacheSize = 0;
+				metrics.cacheHitRate = 0.0;
+			}
 
 			allProductMetrics.add(metrics);
 
@@ -759,10 +1131,21 @@ public class LearnAllProductsAdaptive {
 			System.out.println("Rounds: " + metrics.rounds);
 			System.out.println("MQ Resets: " + metrics.mqResets + ", Symbols: " + metrics.mqSymbols);
 			System.out.println("EQ Resets: " + metrics.eqResets + ", Symbols: " + metrics.eqSymbols);
-			System.out.println("States: " + metrics.states);
+			System.out.println("States: " + metrics.states + "/" + metrics.expectedStates + 
+				(metrics.isEquivalent ? " ✓" : " ✗ INCOMPLETE"));
 			System.out.println("Alphabet: " + metrics.alphabetSize + " symbols");
 			if (i > 0) {
-				System.out.println("✓ Tree reused from previous product");
+				System.out.println("✓ Tree reused from previous product: " + orderedProducts.get(i-1).file.getName());
+				
+				// Display cache statistics
+				if (cachedOracle != null) {
+					cachedOracle.printStatistics();
+					System.out.println("Cache Performance:");
+					System.out.println("  • Saved " + metrics.cacheHits + " resets (" + String.format("%.1f%%", metrics.cacheHitRate) + " hit rate)");
+					System.out.println("  • Total unique queries cached: " + metrics.cacheSize);
+				}
+			} else {
+				System.out.println("✓ Learned from scratch (first in optimal order)");
 			}
 			System.out.println("====================================================\n");
 		}
@@ -778,11 +1161,78 @@ public class LearnAllProductsAdaptive {
 		System.out.println("╚════════════════════════════════════════════════════════════════╝");
 		System.out.println("\nTotal products learned: " + allProductMetrics.size());
 		System.out.println("Results saved to: " + excelFilename);
+		
+		// Count equivalence results
+		int equivalentCount = 0;
+		int notEquivalentCount = 0;
+		List<String> failedProducts = new ArrayList<>();
+		for (ProductMetrics m : allProductMetrics) {
+			if (m.isEquivalent) {
+				equivalentCount++;
+			} else {
+				notEquivalentCount++;
+				failedProducts.add(m.productName + " (learned: " + m.states + ", expected: " + m.expectedStates + ")");
+			}
+		}
+		
+		System.out.println("\n╔════════════════════════════════════════════════════════════════╗");
+		System.out.println("║         EQUIVALENCE CHECK RESULTS                              ║");
+		System.out.println("╠════════════════════════════════════════════════════════════════╣");
+		System.out.println("║  ✓ Equivalent (correctly learned): " + equivalentCount);
+		System.out.println("║  ✗ Not Equivalent (incomplete):    " + notEquivalentCount);
+		System.out.println("╚════════════════════════════════════════════════════════════════╝");
+		
+		if (notEquivalentCount > 0) {
+			System.out.println("\n⚠️  FAILED PRODUCTS (not learned completely):");
+			for (String failed : failedProducts) {
+				System.out.println("   - " + failed);
+			}
+		} else {
+			System.out.println("\n✓ All products learned correctly!");
+		}
+		
 		System.out.println("\nStrategy Used:");
-		System.out.println("  • Product 1: Learned from scratch");
-		System.out.println("  • Products 2-15: Each used a FRESH Product 1 tree");
-		System.out.println("  • Product 1 was re-learned " + (productFiles.length - 1) + " times");
-		System.out.println("\nAll products learned successfully with tree reuse!");
+		System.out.println("  • D' HEURISTIC: Products ordered by complexity (fewer new symbols first)");
+		System.out.println("  • SEQUENTIAL TREE REUSE: Each product uses previous product's tree");
+		System.out.println("  • Learning order: " + 
+			orderedProducts.get(0).file.getName() + " → " +
+			orderedProducts.get(1).file.getName() + " → " +
+			orderedProducts.get(2).file.getName() + " → ...");
+		System.out.println("  • First product: " + orderedProducts.get(0).file.getName() + 
+			" (alphabet size: " + orderedProducts.get(0).alphabet.size() + ")");
+		System.out.println("  • PERSISTENT CACHE enabled across all adaptive products");
+		// Use global cache statistics from the persistent cache
+		if (cachedOracle != null) {
+			int totalCacheHits = cachedOracle.getTotalCacheHits();
+			int totalCacheMisses = cachedOracle.getTotalCacheMisses();
+			int totalQueries = totalCacheHits + totalCacheMisses;
+			
+			System.out.println("\n╔════════════════════════════════════════════════════════════════╗");
+			System.out.println("║         PERSISTENT CACHE - FINAL STATISTICS                    ║");
+			System.out.println("╠════════════════════════════════════════════════════════════════╣");
+			System.out.println("║  Total queries across all products: " + String.format("%-26d", totalQueries) + "║");
+			System.out.println("║  Total cache hits (resets saved):   " + String.format("%-26d", totalCacheHits) + "║");
+			System.out.println("║  Total cache misses:                " + String.format("%-26d", totalCacheMisses) + "║");
+			System.out.println("║  Final cache size (unique queries): " + String.format("%-26d", cachedOracle.getCacheSize()) + "║");
+			if (totalQueries > 0) {
+				double overallHitRate = cachedOracle.getTotalHitRate();
+				System.out.println("║  Overall hit rate:                  " + String.format("%-25.2f%%", overallHitRate) + "║");
+				System.out.println("║  ═══════════════════════════════════════════════════════════  ║");
+				System.out.println("║  🔥 TOTAL RESETS ELIMINATED BY PERSISTENT CACHE: " + String.format("%-12d", totalCacheHits) + "║");
+			}
+			System.out.println("╚════════════════════════════════════════════════════════════════╝");
+		}
+		
+		System.out.println("\nEQ Oracle Strategy:");
+		System.out.println("  • First product: Standard WpMethod (lookahead=2)");
+		System.out.println("  • Subsequent products: HybridAdaptiveEQOracle");
+		System.out.println("    - Phase 1: Smart Adaptive Testing (uses previous products)");
+		System.out.println("    - Phase 2: WpMethod fallback (lookahead=2)");
+		
+		System.out.println("\n╔════════════════════════════════════════════════════════════════╗");
+		System.out.println("║  All products learned with OPTIMAL ORDER (D' heuristic)!       ║");
+		System.out.println("║  Sequential tree reuse + Persistent caching enabled            ║");
+		System.out.println("╚════════════════════════════════════════════════════════════════╝");
 	}
 
 	private static Options createOptions() {
