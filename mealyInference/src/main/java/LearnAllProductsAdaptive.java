@@ -127,9 +127,13 @@ class AdaptiveCachedMembershipOracle<I, O> implements MembershipOracle<I, O> {
     }
     
     public void printStatistics() {
+        printStatistics("CACHE");
+    }
+
+    public void printStatistics(String label) {
         int totalQueries = cacheHits + cacheMisses;
         System.out.println("\n╔════════════════════════════════════════════════════════╗");
-        System.out.println("║              CACHE STATISTICS                          ║");
+        System.out.println("║              " + String.format("%-38s", label + " STATISTICS") + "║");
         System.out.println("╠════════════════════════════════════════════════════════╣");
         System.out.println("║  Total Queries:    " + String.format("%-30d", totalQueries) + "║");
         System.out.println("║  Cache Hits:       " + String.format("%-30d", cacheHits) + "║");
@@ -169,8 +173,9 @@ public class LearnAllProductsAdaptive {
 	private static ArrayList<String> allInputAlphabets = new ArrayList<>();
 	private static Alphabet<String> product1Alphabet = null;
 	private static CompactMealy<String, Word<String>> previousHypothesis = null;
-	// Store cached oracle for statistics
+	// Store cached oracles for statistics
 	private static AdaptiveCachedMembershipOracle<String, Word<Word<String>>> cachedOracle = null;
+	private static AdaptiveCachedMembershipOracle<String, Word<Word<String>>> cachedEqOracle = null;
 
 	// Statistics storage
 	private static List<ProductMetrics> allProductMetrics = new ArrayList<>();
@@ -181,17 +186,24 @@ public class LearnAllProductsAdaptive {
 		int rounds;
 		long mqResets;
 		long mqSymbols;
+		/** Count of {@code pre()} on the EQ SUL (one increment per EQ-side membership query reset). */
 		long eqResets;
+		/** Count of {@code step()} on the EQ SUL (total input symbols applied during equivalence testing). */
 		long eqSymbols;
 		int states;
 		int alphabetSize;
 		int newSymbolsAdded;
 		boolean isAdaptive;
-		// Cache statistics
+		// MQ cache statistics
 		int cacheHits;
 		int cacheMisses;
 		int cacheSize;
 		double cacheHitRate;
+		// EQ cache statistics
+		int eqCacheHits;
+		int eqCacheMisses;
+		int eqCacheSize;
+		double eqCacheHitRate;
 	}
 
 	private static int ExtractValue(String string_1) {
@@ -278,6 +290,8 @@ public class LearnAllProductsAdaptive {
 	}
 
 	public static final String EQ = "eq";
+	/** WpMethod lookahead for EQ when {@code -eq} is not set (default 2). Lower values may reduce EQ work but can break completeness for some models. */
+	public static final String EQWP = "eqwp";
 	public static final String SOT = "sot";
 	public static final String SOT2 = "sot2";
 	public static final String HELP = "help";
@@ -433,12 +447,23 @@ public class LearnAllProductsAdaptive {
 
 	private static EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> buildEqOracle(
 			Random rnd_seed, CommandLine line, CompactMealy<String, Word<String>> mealyss,
+			MembershipOracle<String, Word<Word<String>>> oracleForEQoracle,
 			SUL<String, Word<String>> eq_sul) {
-		MembershipOracle<String, Word<Word<String>>> oracleForEQoracle = new SULOracle<>(eq_sul);
-
 		EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle;
 		if (!line.hasOption(EQ)) {
-			return new WpMethodEQOracle<>(oracleForEQoracle, 2);
+			int wpLookahead = 2;
+			if (line.hasOption(EQWP)) {
+				try {
+					wpLookahead = Integer.parseInt(line.getOptionValue(EQWP));
+				} catch (NumberFormatException e) {
+					System.err.println("LearnAllProductsAdaptive: invalid -eqwp, using 2");
+					wpLookahead = 2;
+				}
+				if (wpLookahead < 1) {
+					wpLookahead = 1;
+				}
+			}
+			return new WpMethodEQOracle<>(oracleForEQoracle, wpLookahead);
 		}
 
 		double restartProbability;
@@ -502,17 +527,18 @@ public class LearnAllProductsAdaptive {
 		IKearnsVaziraniMealy<String, Word<String>> learner = (IKearnsVaziraniMealy<String, Word<String>>) builder
 				.withAlphabet(growingAlphabet).create(null, null);
 		
-		// Create EQ oracle
+		// EQ: current product alphabet only, with cached membership oracle
 		SUL<String, Word<String>> eqSulSim = new MealySimulatorSUL<>(mealyMachine, Utils.OMEGA_SYMBOL);
 		StatisticSUL<String, Word<String>> eq_sym = new SymbolCounterSUL<>("EQ", eqSulSim);
 		StatisticSUL<String, Word<String>> eq_rst = new ResetCounterSUL<>("EQ", eq_sym);
 		SUL<String, Word<String>> eq_sul = eq_rst;
-		
+		cachedEqOracle = new AdaptiveCachedMembershipOracle<>(new SULOracle<>(eq_sul));
+
 		EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = buildEqOracle(
-				rnd_seed, line, mealyMachine, eq_sul);
-		
+				rnd_seed, line, mealyMachine, cachedEqOracle, eq_sul);
+
 		Experiment.MealyExperiment<String, Word<String>> experiment = new Experiment.MealyExperiment<String, Word<String>>(
-				learner, eqOracle, learner.get_alphabet_symbol());
+				learner, eqOracle, productAlphabet);
 		
 		// Run experiment
 		System.out.println("Learning Product 1 from scratch...");
@@ -541,7 +567,8 @@ public class LearnAllProductsAdaptive {
 		// Create header row
 		Row headerRow = sheet.createRow(0);
 		String[] headers = { "Product", "Rounds", "MQ Resets", "MQ Symbols", "EQ Resets", "EQ Symbols", "States",
-				"Alphabet Size", "New Symbols Added", "Learning Type", "Cache Hits", "Cache Misses", "Cache Size", "Cache Hit Rate %" };
+				"Alphabet Size", "New Symbols Added", "Learning Type", "MQ Cache Hits", "MQ Cache Misses", "MQ Cache Size",
+				"MQ Cache Hit Rate %", "EQ Cache Hits", "EQ Cache Misses", "EQ Cache Size", "EQ Cache Hit Rate %" };
 		for (int i = 0; i < headers.length; i++) {
 			Cell cell = headerRow.createCell(i);
 			cell.setCellValue(headers[i]);
@@ -570,6 +597,10 @@ public class LearnAllProductsAdaptive {
 			row.createCell(11).setCellValue(metrics.cacheMisses);
 			row.createCell(12).setCellValue(metrics.cacheSize);
 			row.createCell(13).setCellValue(metrics.cacheHitRate);
+			row.createCell(14).setCellValue(metrics.eqCacheHits);
+			row.createCell(15).setCellValue(metrics.eqCacheMisses);
+			row.createCell(16).setCellValue(metrics.eqCacheSize);
+			row.createCell(17).setCellValue(metrics.eqCacheHitRate);
 		}
 
 		// Auto-size columns
@@ -780,47 +811,17 @@ public class LearnAllProductsAdaptive {
 						.create(tree_round2, adaptedHypothesis);
 			}
 
-			// Create EQ oracle
-			CompactMealy<String, Word<String>> updatedMealy;
-			if (i > 0) {
-				Alphabet<String> learnerAlphabet = learner.get_alphabet_symbol();
-				updatedMealy = new CompactMealy<>(learnerAlphabet);
-				Map<Integer, Integer> stateMap = new HashMap<>();
-				for (Integer state : mealyMachine.getStates()) {
-					stateMap.put(state, updatedMealy.addState());
-				}
-				updatedMealy.setInitialState(stateMap.get(mealyMachine.getInitialState()));
-
-				for (Integer state : mealyMachine.getStates()) {
-					for (String input : productAlphabet) {
-						Integer succ = mealyMachine.getSuccessor(state, input);
-						Word<String> output = mealyMachine.getOutput(state, input);
-						if (succ != null) {
-							updatedMealy.addTransition(stateMap.get(state), input, stateMap.get(succ), output);
-						}
-					}
-				}
-
-				for (String symbol : learnerAlphabet) {
-					if (!productAlphabet.containsSymbol(symbol)) {
-						for (Integer state : updatedMealy.getStates()) {
-							updatedMealy.addTransition(state, symbol, state, Utils.OMEGA_SYMBOL);
-						}
-					}
-				}
-			} else {
-				updatedMealy = mealyMachine;
-			}
-
-			SUL<String, Word<String>> eqSulSim = new MealySimulatorSUL<>(updatedMealy, Utils.OMEGA_SYMBOL);
+			// EQ: current product alphabet only (not extended learner alphabet), with cache
+			SUL<String, Word<String>> eqSulSim = new MealySimulatorSUL<>(mealyMachine, Utils.OMEGA_SYMBOL);
 			StatisticSUL<String, Word<String>> eq_sym = new SymbolCounterSUL<>("EQ", eqSulSim);
 			StatisticSUL<String, Word<String>> eq_rst = new ResetCounterSUL<>("EQ", eq_sym);
 			SUL<String, Word<String>> eq_sul = eq_rst;
+			cachedEqOracle = new AdaptiveCachedMembershipOracle<>(new SULOracle<>(eq_sul));
 
 			EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = buildEqOracle(
-					rnd_seed, line, updatedMealy, eq_sul);
+					rnd_seed, line, mealyMachine, cachedEqOracle, eq_sul);
 			Experiment.MealyExperiment<String, Word<String>> experiment = new Experiment.MealyExperiment<String, Word<String>>(
-					learner, eqOracle, learner.get_alphabet_symbol());
+					learner, eqOracle, productAlphabet);
 
 			// Run experiment
 			if (i == 0) {
@@ -858,18 +859,31 @@ public class LearnAllProductsAdaptive {
 			metrics.newSymbolsAdded = (i == 0) ? 0 : (learner.get_alphabet_symbol().size() - productAlphabet.size());
 			metrics.isAdaptive = (i > 0);
 			
-			// Collect cache statistics for adaptive products
+			// MQ cache statistics (adaptive products only)
 			if (i > 0 && cachedOracle != null) {
 				metrics.cacheHits = cachedOracle.getCacheHits();
 				metrics.cacheMisses = cachedOracle.getCacheMisses();
 				metrics.cacheSize = cachedOracle.getCacheSize();
-				int totalCacheQueries = metrics.cacheHits + metrics.cacheMisses;
-				metrics.cacheHitRate = (totalCacheQueries > 0) ? (metrics.cacheHits * 100.0 / totalCacheQueries) : 0.0;
+				int totalMqCache = metrics.cacheHits + metrics.cacheMisses;
+				metrics.cacheHitRate = (totalMqCache > 0) ? (metrics.cacheHits * 100.0 / totalMqCache) : 0.0;
 			} else {
 				metrics.cacheHits = 0;
 				metrics.cacheMisses = 0;
 				metrics.cacheSize = 0;
 				metrics.cacheHitRate = 0.0;
+			}
+			// EQ cache statistics (all products)
+			if (cachedEqOracle != null) {
+				metrics.eqCacheHits = cachedEqOracle.getCacheHits();
+				metrics.eqCacheMisses = cachedEqOracle.getCacheMisses();
+				metrics.eqCacheSize = cachedEqOracle.getCacheSize();
+				int totalEqCache = metrics.eqCacheHits + metrics.eqCacheMisses;
+				metrics.eqCacheHitRate = (totalEqCache > 0) ? (metrics.eqCacheHits * 100.0 / totalEqCache) : 0.0;
+			} else {
+				metrics.eqCacheHits = 0;
+				metrics.eqCacheMisses = 0;
+				metrics.eqCacheSize = 0;
+				metrics.eqCacheHitRate = 0.0;
 			}
 
 			allProductMetrics.add(metrics);
@@ -882,15 +896,18 @@ public class LearnAllProductsAdaptive {
 			System.out.println("Alphabet: " + metrics.alphabetSize + " symbols");
 			if (i > 0) {
 				System.out.println("✓ Tree reused from Product 1 (FRESH)");
-				
-				// Display cache statistics
 				if (cachedOracle != null) {
-					cachedOracle.printStatistics();
-					System.out.println("Cache Performance:");
-					System.out.println("  • Saved " + metrics.cacheHits + " resets (" + String.format("%.1f%%", metrics.cacheHitRate) + " hit rate)");
-					System.out.println("  • Total unique queries cached: " + metrics.cacheSize);
+					cachedOracle.printStatistics("MQ CACHE");
+					System.out.println("MQ cache: saved " + metrics.cacheHits + " queries ("
+							+ String.format("%.1f%%", metrics.cacheHitRate) + " hit rate)");
 				}
 			}
+			if (cachedEqOracle != null) {
+				cachedEqOracle.printStatistics("EQ CACHE");
+				System.out.println("EQ cache: saved " + metrics.eqCacheHits + " queries ("
+						+ String.format("%.1f%%", metrics.eqCacheHitRate) + " hit rate)");
+			}
+			System.out.println("EQ alphabet: " + productAlphabet.size() + " symbols (product-only)");
 			System.out.println("====================================================\n");
 		}
 
@@ -909,25 +926,32 @@ public class LearnAllProductsAdaptive {
 		System.out.println("  • Product 1: Learned from scratch");
 		System.out.println("  • Products 2-15: Each used a FRESH Product 1 tree");
 		System.out.println("  • Product 1 was re-learned " + (productFiles.length - 1) + " times");
-		System.out.println("  • Cache enabled for all adaptive products (2-15)");
+		System.out.println("  • MQ cache enabled for adaptive products (2-15)");
+		System.out.println("  • EQ cache + product-only alphabet for all products");
 		
 		// Calculate total cache benefits
-		int totalCacheHits = 0;
-		int totalCacheMisses = 0;
+		int totalMqCacheHits = 0;
+		int totalMqCacheMisses = 0;
+		int totalEqCacheHits = 0;
+		int totalEqCacheMisses = 0;
 		for (ProductMetrics m : allProductMetrics) {
 			if (m.isAdaptive) {
-				totalCacheHits += m.cacheHits;
-				totalCacheMisses += m.cacheMisses;
+				totalMqCacheHits += m.cacheHits;
+				totalMqCacheMisses += m.cacheMisses;
 			}
+			totalEqCacheHits += m.eqCacheHits;
+			totalEqCacheMisses += m.eqCacheMisses;
 		}
 		
-		if (totalCacheHits + totalCacheMisses > 0) {
-			double overallHitRate = (totalCacheHits * 100.0) / (totalCacheHits + totalCacheMisses);
-			System.out.println("\nCache Performance Summary:");
-			System.out.println("  • Total queries across all adaptive products: " + (totalCacheHits + totalCacheMisses));
-			System.out.println("  • Total cache hits (resets saved): " + totalCacheHits);
-			System.out.println("  • Overall cache hit rate: " + String.format("%.2f%%", overallHitRate));
-			System.out.println("  • Total resets eliminated by caching: " + totalCacheHits);
+		if (totalMqCacheHits + totalMqCacheMisses > 0) {
+			double mqHitRate = (totalMqCacheHits * 100.0) / (totalMqCacheHits + totalMqCacheMisses);
+			System.out.println("\nMQ Cache Summary (adaptive products):");
+			System.out.println("  • Hits: " + totalMqCacheHits + ", hit rate: " + String.format("%.2f%%", mqHitRate));
+		}
+		if (totalEqCacheHits + totalEqCacheMisses > 0) {
+			double eqHitRate = (totalEqCacheHits * 100.0) / (totalEqCacheHits + totalEqCacheMisses);
+			System.out.println("\nEQ Cache Summary (all products):");
+			System.out.println("  • Hits: " + totalEqCacheHits + ", hit rate: " + String.format("%.2f%%", eqHitRate));
 		}
 		
 		System.out.println("\nAll products learned successfully with tree reuse and caching!");
@@ -944,6 +968,8 @@ public class LearnAllProductsAdaptive {
 				"Set closing strategy." + "\nOptions: {" + String.join(", ", closingStrategiesAvailable) + "}");
 		options.addOption(EQ, true,
 				"Set equivalence query generator." + "\nOptions: {" + String.join(", ", eqMethodsAvailable) + "}");
+		options.addOption(EQWP, true,
+				"WpMethod lookahead depth when -eq is omitted (default 2). Tune EQ symbol/reset counts; values < 2 may be incomplete for some Mealy machines.");
 		options.addOption(CEXH, true, "Set counter example (CE) processing method." + "\nOptions: {"
 				+ String.join(", ", cexHandlersAvailable) + "}");
 		options.addOption(CACHE, false, "Use caching.");
