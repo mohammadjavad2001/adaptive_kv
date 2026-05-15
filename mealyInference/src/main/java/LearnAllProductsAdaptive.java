@@ -204,6 +204,40 @@ public class LearnAllProductsAdaptive {
 		int eqCacheMisses;
 		int eqCacheSize;
 		double eqCacheHitRate;
+		int originalStates;
+		boolean equivalent;
+	}
+
+	/** Post-learning check: learned hypothesis vs original product model on product alphabet. */
+	private static void checkEquivalence(
+			String productName,
+			CompactMealy<String, Word<String>> mealyMachine,
+			CompactMealy<String, Word<String>> finalHyp,
+			Alphabet<String> productAlphabet,
+			ProductMetrics metrics) {
+		int expectedStates = mealyMachine.size();
+		int learnedStates = finalHyp.getStates().size();
+		Word<String> separatingWord = DeterministicEquivalenceTest.findSeparatingWord(
+				mealyMachine, finalHyp, productAlphabet);
+		boolean isEquivalent = (separatingWord == null);
+
+		metrics.originalStates = expectedStates;
+		metrics.equivalent = isEquivalent;
+
+		System.out.println("\n╔═══════════════════════════════════════════════════════════╗");
+		System.out.println("║  EQUIVALENCE CHECK: " + productName);
+		System.out.println("╠═══════════════════════════════════════════════════════════╣");
+		System.out.println("║  Original model states:  " + expectedStates);
+		System.out.println("║  Learned model states:   " + learnedStates);
+		if (isEquivalent) {
+			System.out.println("║  ✓ EQUIVALENT - Model learned correctly!");
+		} else {
+			System.out.println("║  ✗ NOT EQUIVALENT - Model incomplete!");
+			System.out.println("║  Separating word: " + separatingWord);
+			System.out.println("║  Expected output: " + mealyMachine.computeOutput(separatingWord));
+			System.out.println("║  Learned output:  " + finalHyp.computeOutput(separatingWord));
+		}
+		System.out.println("╚═══════════════════════════════════════════════════════════╝");
 	}
 
 	private static int ExtractValue(String string_1) {
@@ -567,8 +601,9 @@ public class LearnAllProductsAdaptive {
 		// Create header row
 		Row headerRow = sheet.createRow(0);
 		String[] headers = { "Product", "Rounds", "MQ Resets", "MQ Symbols", "EQ Resets", "EQ Symbols", "States",
-				"Alphabet Size", "New Symbols Added", "Learning Type", "MQ Cache Hits", "MQ Cache Misses", "MQ Cache Size",
-				"MQ Cache Hit Rate %", "EQ Cache Hits", "EQ Cache Misses", "EQ Cache Size", "EQ Cache Hit Rate %" };
+				"Original States", "Equivalent", "Alphabet Size", "New Symbols Added", "Learning Type", "MQ Cache Hits",
+				"MQ Cache Misses", "MQ Cache Size", "MQ Cache Hit Rate %", "EQ Cache Hits", "EQ Cache Misses",
+				"EQ Cache Size", "EQ Cache Hit Rate %" };
 		for (int i = 0; i < headers.length; i++) {
 			Cell cell = headerRow.createCell(i);
 			cell.setCellValue(headers[i]);
@@ -590,17 +625,19 @@ public class LearnAllProductsAdaptive {
 			row.createCell(4).setCellValue(metrics.eqResets);
 			row.createCell(5).setCellValue(metrics.eqSymbols);
 			row.createCell(6).setCellValue(metrics.states);
-			row.createCell(7).setCellValue(metrics.alphabetSize);
-			row.createCell(8).setCellValue(metrics.newSymbolsAdded);
-			row.createCell(9).setCellValue(metrics.isAdaptive ? "Adaptive" : "Normal");
-			row.createCell(10).setCellValue(metrics.cacheHits);
-			row.createCell(11).setCellValue(metrics.cacheMisses);
-			row.createCell(12).setCellValue(metrics.cacheSize);
-			row.createCell(13).setCellValue(metrics.cacheHitRate);
-			row.createCell(14).setCellValue(metrics.eqCacheHits);
-			row.createCell(15).setCellValue(metrics.eqCacheMisses);
-			row.createCell(16).setCellValue(metrics.eqCacheSize);
-			row.createCell(17).setCellValue(metrics.eqCacheHitRate);
+			row.createCell(7).setCellValue(metrics.originalStates);
+			row.createCell(8).setCellValue(metrics.equivalent ? "Yes" : "No");
+			row.createCell(9).setCellValue(metrics.alphabetSize);
+			row.createCell(10).setCellValue(metrics.newSymbolsAdded);
+			row.createCell(11).setCellValue(metrics.isAdaptive ? "Adaptive" : "Normal");
+			row.createCell(12).setCellValue(metrics.cacheHits);
+			row.createCell(13).setCellValue(metrics.cacheMisses);
+			row.createCell(14).setCellValue(metrics.cacheSize);
+			row.createCell(15).setCellValue(metrics.cacheHitRate);
+			row.createCell(16).setCellValue(metrics.eqCacheHits);
+			row.createCell(17).setCellValue(metrics.eqCacheMisses);
+			row.createCell(18).setCellValue(metrics.eqCacheSize);
+			row.createCell(19).setCellValue(metrics.eqCacheHitRate);
 		}
 
 		// Auto-size columns
@@ -886,13 +923,17 @@ public class LearnAllProductsAdaptive {
 				metrics.eqCacheHitRate = 0.0;
 			}
 
+			CompactMealy<String, Word<String>> finalHyp = (CompactMealy<String, Word<String>>) experiment.getFinalHypothesis();
+			checkEquivalence(productFile.getName(), mealyMachine, finalHyp, productAlphabet, metrics);
+
 			allProductMetrics.add(metrics);
 
 			System.out.println("\n========== PRODUCT " + (i + 1) + " COMPLETED ==========");
 			System.out.println("Rounds: " + metrics.rounds);
 			System.out.println("MQ Resets: " + metrics.mqResets + ", Symbols: " + metrics.mqSymbols);
 			System.out.println("EQ Resets: " + metrics.eqResets + ", Symbols: " + metrics.eqSymbols);
-			System.out.println("States: " + metrics.states);
+			System.out.println("States: " + metrics.states + " (original: " + metrics.originalStates + ")");
+			System.out.println("Equivalent: " + (metrics.equivalent ? "Yes" : "No"));
 			System.out.println("Alphabet: " + metrics.alphabetSize + " symbols");
 			if (i > 0) {
 				System.out.println("✓ Tree reused from Product 1 (FRESH)");
