@@ -181,7 +181,7 @@ public class Experiment<A extends Object> {
                 if(rounds.getCount()==3){
       
                 }
-                if(rounds.getCount()==4 && first){
+                if(rounds.getCount()==7 && first){
                     // Create a DEEP COPY of the tree at round 2
                     MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = kvLearner.getDiscriminationTree();
                     setDiscrtree(tree_round2);

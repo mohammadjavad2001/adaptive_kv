@@ -525,7 +525,73 @@ public class LearnAllProductsAdaptive {
 		CompactMealy<String, Word<String>> hypothesis;
 		GrowingAlphabet<String> alphabet;
 	}
-	
+
+	private static class ProductInfo {
+		int index;
+		File file;
+		Set<String> alphabet;
+		double dPrime;
+
+		ProductInfo(int index, File file, Set<String> alphabet) {
+			this.index = index;
+			this.file = file;
+			this.alphabet = alphabet;
+			this.dPrime = 0.0;
+		}
+	}
+
+	private static CompactMealy<String, Word<String>> loadMealyForOrder(File productFile) throws Exception {
+		return LoadMealy(productFile);
+	}
+
+	static List<ProductInfo> calculateOptimalOrder(File[] productFiles) throws Exception {
+		System.out.println("\n╔════════════════════════════════════════════════════════════════╗");
+		System.out.println("║ CALCULATING OPTIMAL PRODUCT LEARNING ORDER (D')               ║");
+		System.out.println("╚════════════════════════════════════════════════════════════════╝\n");
+
+		List<ProductInfo> products = new ArrayList<>();
+		for (int i = 0; i < productFiles.length; i++) {
+			CompactMealy<String, Word<String>> mealy = loadMealyForOrder(productFiles[i]);
+			Set<String> alphabet = new HashSet<>();
+			for (String symbol : mealy.getInputAlphabet()) {
+				alphabet.add(symbol);
+			}
+			products.add(new ProductInfo(i, productFiles[i], alphabet));
+		}
+
+		ProductInfo firstProduct = products.stream()
+			.min(Comparator.comparingInt(p -> p.alphabet.size()))
+			.orElse(products.get(0));
+		System.out.println("✓ First product (smallest alphabet): " + firstProduct.file.getName() + " with " + firstProduct.alphabet.size() + " symbols");
+
+		List<ProductInfo> orderedProducts = new ArrayList<>();
+		orderedProducts.add(firstProduct);
+		Set<String> learnedSymbols = new HashSet<>(firstProduct.alphabet);
+		List<ProductInfo> remaining = new ArrayList<>(products);
+		remaining.remove(firstProduct);
+
+		while (!remaining.isEmpty()) {
+			for (ProductInfo product : remaining) {
+				product.dPrime = 0;
+				for (String symbol : product.alphabet) {
+					if (!learnedSymbols.contains(symbol)) {
+						product.dPrime++;
+					}
+				}
+			}
+
+			remaining.sort(Comparator.comparingDouble(p -> p.dPrime));
+			ProductInfo nextProduct = remaining.remove(0);
+			orderedProducts.add(nextProduct);
+			learnedSymbols.addAll(nextProduct.alphabet);
+			System.out.println(" Product " + orderedProducts.size() + ": " + nextProduct.file.getName() + " (D'=" + String.format("%.0f", nextProduct.dPrime) + ", alphabet=" + nextProduct.alphabet.size() + ", new symbols=" + (int) nextProduct.dPrime + ")");
+		}
+
+		System.out.println("\n✓ Optimal learning order calculated using D' heuristic");
+		System.out.println(" Strategy: Learn products with fewer NEW symbols first\n");
+		return orderedProducts;
+	}
+
 	private static Product1Result learnProduct1Fresh(File product1File, String[] args) throws Exception {
 		System.out.println("\n" + "█".repeat(70));
 		System.out.println("  LEARNING PRODUCT 1 (FRESH) FOR TREE/HYPOTHESIS EXTRACTION");
@@ -658,17 +724,23 @@ public class LearnAllProductsAdaptive {
 		// Get all product files
 		File productsDir = new File(".\\alternative_experiments\\Minepump_SPL\\products_3wise");
 		File[] productFiles = productsDir.listFiles((dir, name) -> name.matches("\\d{5}_fsm\\.dot"));
+		if (productFiles == null || productFiles.length == 0) {
+			System.err.println("No product files found in " + productsDir.getAbsolutePath());
+			return;
+		}
 		Arrays.sort(productFiles);
+
+		List<ProductInfo> orderedProducts = calculateOptimalOrder(productFiles);
 
 		System.out.println("╔════════════════════════════════════════════════════════════════╗");
 		System.out.println("║     ADAPTIVE LEARNING - ALL MINEPUMP_SPL PRODUCTS              ║");
 		System.out.println("╚════════════════════════════════════════════════════════════════╝");
-		System.out.println("\nFound " + productFiles.length + " products to learn\n");
-		System.out.println("Strategy: Learn Product 1 fresh before each new product");
-		System.out.println("          Then reuse Product 1's tree/hypothesis for that product\n");
+		System.out.println("\nFound " + orderedProducts.size() + " products to learn\n");
+		System.out.println("Strategy: Learn in optimal D' order");
+		System.out.println("          First learn the smallest alphabet product, then products that add fewer new symbols\n");
 
 		// Learn each product with fresh Product 1 tree reuse
-		for (int i = 0; i < productFiles.length; i++) {
+		for (int i = 0; i < orderedProducts.size(); i++) {
 			
 			// For products 2-15: Learn Product 1 fresh first to get clean tree/hypothesis
 			if (i > 0) {
@@ -677,7 +749,7 @@ public class LearnAllProductsAdaptive {
 				System.out.println("  Step 1: Learn Product 1 fresh to get tree/hypothesis");
 				System.out.println("▼".repeat(70));
 				
-				Product1Result product1Result = learnProduct1Fresh(productFiles[0], args);
+				Product1Result product1Result = learnProduct1Fresh(orderedProducts.get(0).file, args);
 				tree_round2 = product1Result.tree;
 				previousHypothesis = product1Result.hypothesis;
 				product1Alphabet = product1Result.alphabet;
@@ -690,9 +762,9 @@ public class LearnAllProductsAdaptive {
 				
 				System.out.println("  Step 2: Now learn Product " + (i + 1) + " using Product 1's tree");
 			}
-			File productFile = productFiles[i];
+			File productFile = orderedProducts.get(i).file;
 			System.out.println("\n" + "=".repeat(70));
-			System.out.println("LEARNING PRODUCT " + (i + 1) + "/" + productFiles.length + ": " + productFile.getName());
+			System.out.println("LEARNING PRODUCT " + (i + 1) + "/" + orderedProducts.size() + ": " + productFile.getName());
 			System.out.println("=".repeat(70));
 
 			CompactMealy<String, Word<String>> mealyMachine = LoadMealy(productFile);
@@ -964,10 +1036,10 @@ public class LearnAllProductsAdaptive {
 		System.out.println("\nTotal products learned: " + allProductMetrics.size());
 		System.out.println("Results saved to: " + excelFilename);
 		System.out.println("\nStrategy Used:");
-		System.out.println("  • Product 1: Learned from scratch");
-		System.out.println("  • Products 2-15: Each used a FRESH Product 1 tree");
-		System.out.println("  • Product 1 was re-learned " + (productFiles.length - 1) + " times");
-		System.out.println("  • MQ cache enabled for adaptive products (2-15)");
+		System.out.println("  • First product in the D' order: Learned from scratch");
+		System.out.println("  • Remaining products: Each reused a fresh tree from the first ordered product");
+		System.out.println("  • First ordered product was re-learned " + (orderedProducts.size() - 1) + " times");
+		System.out.println("  • MQ cache enabled for adaptive products (2-N)");
 		System.out.println("  • EQ cache + product-only alphabet for all products");
 		
 		// Calculate total cache benefits
