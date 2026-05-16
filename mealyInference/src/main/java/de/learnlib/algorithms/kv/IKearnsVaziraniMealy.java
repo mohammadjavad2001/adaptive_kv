@@ -342,27 +342,24 @@ public class IKearnsVaziraniMealy<I, O> extends KearnsVaziraniMealy<I, O> {
         }
 
         if (!parentNode.isRoot() || !parentNode.getDiscriminator().isEmpty()) {
-            // Replace parent with sibling
-            // parentNode.replaceChildren(siblingNode.getChildren());
-            // Replace parent with sibling
-// Replace parent with sibling
-            Map<Word<O>, AbstractWordBasedDTNode<I, Word<O>, StateInfo<I, Word<O>>>> childMap = 
-                siblingNode.getChildEntries().stream()
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-            parentNode.replaceChildren(childMap);
-
-            parentNode.setDiscriminator(siblingNode.getDiscriminator());
-            
             if (siblingNode.isLeaf()) {
-                parentNode.setData(siblingNode.getData());
-                if (parentNode.getData() != null) {
-                    parentNode.getData().dtNode = parentNode;
+                // Sibling is a leaf (children == null); promote its state to parent
+                StateInfo<I, Word<O>> siblingData = siblingNode.getData();
+                leaf.setData(null);
+                parentNode.replaceChildren(null);
+                parentNode.setDiscriminator(siblingNode.getDiscriminator());
+                if (siblingData != null) {
+                    parentNode.setData(siblingData);
+                    siblingData.dtNode = parentNode;
                 }
             } else {
+                Map<Word<O>, AbstractWordBasedDTNode<I, Word<O>, StateInfo<I, Word<O>>>> childMap =
+                    siblingNode.getChildEntries().stream()
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                parentNode.replaceChildren(childMap);
+                parentNode.setDiscriminator(siblingNode.getDiscriminator());
                 parentNode.setData(null);
             }
-            
-            // Depth is managed internally by the tree
         } else {
             // Root with epsilon discriminator - just clear data
             leaf.setData(null);
