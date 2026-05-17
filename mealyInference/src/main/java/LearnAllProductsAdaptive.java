@@ -171,7 +171,7 @@ public class LearnAllProductsAdaptive {
 	// Tree and hypothesis storage for adaptive learning
 	static MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = null;
 	private static ArrayList<String> allInputAlphabets = new ArrayList<>();
-	private static Alphabet<String> product1Alphabet = null;
+	private static Alphabet<String> previousProductAlphabet = null;
 	private static CompactMealy<String, Word<String>> previousHypothesis = null;
 	// Store cached oracles for statistics
 	private static AdaptiveCachedMembershipOracle<String, Word<Word<String>>> cachedOracle = null;
@@ -739,28 +739,13 @@ public class LearnAllProductsAdaptive {
 		System.out.println("Strategy: Learn in optimal D' order");
 		System.out.println("          First learn the smallest alphabet product, then products that add fewer new symbols\n");
 
-		// Learn each product with fresh Product 1 tree reuse
+		// Learn each product using the previous product's tree/hypothesis chain
 		for (int i = 0; i < orderedProducts.size(); i++) {
-			
-			// For products 2-15: Learn Product 1 fresh first to get clean tree/hypothesis
 			if (i > 0) {
 				System.out.println("\n" + "▼".repeat(70));
 				System.out.println("  PREPARING TO LEARN PRODUCT " + (i + 1));
-				System.out.println("  Step 1: Learn Product 1 fresh to get tree/hypothesis");
+				System.out.println("  Step 1: Use the previous product's tree and hypothesis");
 				System.out.println("▼".repeat(70));
-				
-				Product1Result product1Result = learnProduct1Fresh(orderedProducts.get(0).file, args);
-				tree_round2 = product1Result.tree;
-				previousHypothesis = product1Result.hypothesis;
-				product1Alphabet = product1Result.alphabet;
-				
-				// Reset alphabet collection to Product 1's alphabet
-				allInputAlphabets.clear();
-				for (String symbol : product1Alphabet) {
-					allInputAlphabets.add(symbol);
-				}
-				
-				System.out.println("  Step 2: Now learn Product " + (i + 1) + " using Product 1's tree");
 			}
 			File productFile = orderedProducts.get(i).file;
 			System.out.println("\n" + "=".repeat(70));
@@ -795,6 +780,7 @@ public class LearnAllProductsAdaptive {
 
 			// Manage alphabet collection
 			if (i == 0) {
+				
 				allInputAlphabets.clear();
 				for (String symbol : productAlphabet) {
 					allInputAlphabets.add(symbol);
@@ -814,19 +800,18 @@ public class LearnAllProductsAdaptive {
 			StatisticSUL<String, Word<String>> mq_rst_adaptive = null;
 
 			if (i == 0) {
-				// Product 0: Initialize from scratch
-				product1Alphabet = new GrowingMapAlphabet<>(Alphabets.fromCollection(allInputAlphabets));
-				MembershipOracle<String, Word<Word<String>>> mqOracle = new SULOracle<String, Word<String>>(mq_sul);
-				IKearnsVaziraniMealyBuilder<Object, String, Word<String>> builder = new IKearnsVaziraniMealyBuilder<>();
-				builder.setOracle(mqOracle);
-				builder.setAlphabet(combinedAlphabet);
-				learner = (IKearnsVaziraniMealy<String, Word<String>>) builder.withAlphabet(product1Alphabet)
-						.create(null, null);
-				System.out.println("Learning from scratch (Product 1)");
-			} else {
-				// Products 2+: Adaptive learning with tree reuse
-				System.out.println("Adaptive learning (reusing Product 1's FRESH tree)");
-				
+			// First ordered product: initialize from scratch and learn to round 7
+			previousProductAlphabet = new GrowingMapAlphabet<>(Alphabets.fromCollection(allInputAlphabets));
+			MembershipOracle<String, Word<Word<String>>> mqOracle = new SULOracle<String, Word<String>>(mq_sul);
+			IKearnsVaziraniMealyBuilder<Object, String, Word<String>> builder = new IKearnsVaziraniMealyBuilder<>();
+			builder.setOracle(mqOracle);
+			builder.setAlphabet(combinedAlphabet);
+			learner = (IKearnsVaziraniMealy<String, Word<String>>) builder.withAlphabet(previousProductAlphabet)
+					.create(null, null);
+			System.out.println("Learning first ordered product from scratch");
+		} else {
+			// Subsequent products: reuse tree/hypothesis from the previous ordered product
+			System.out.println("Adaptive learning (reusing previous product's tree)");
 				// Safety check: ensure tree exists
 				if (tree_round2 == null || previousHypothesis == null) {
 					System.err.println("ERROR: Tree or previous hypothesis is null! Cannot perform adaptive learning.");
@@ -835,7 +820,7 @@ public class LearnAllProductsAdaptive {
 					throw new IllegalStateException("Cannot perform adaptive learning without previous tree and hypothesis");
 				}
 
-				GrowingAlphabet<String> extendedAlphabet = new GrowingMapAlphabet<>(product1Alphabet);
+				GrowingAlphabet<String> extendedAlphabet = new GrowingMapAlphabet<>(previousProductAlphabet);
 				for (String symbol : productAlphabet) {
 					if (!extendedAlphabet.containsSymbol(symbol)) {
 						extendedAlphabet.addSymbol(symbol);
@@ -896,7 +881,7 @@ public class LearnAllProductsAdaptive {
 
 				for (Integer oldState : previousHypothesis.getStates()) {
 					Integer newState = stateMap2.get(oldState);
-					for (String symbol : product1Alphabet) {
+					for (String symbol : previousProductAlphabet) {
 						Integer oldSucc = previousHypothesis.getSuccessor(oldState, symbol);
 						Word<String> output = previousHypothesis.getOutput(oldState, symbol);
 						if (oldSucc != null) {
@@ -906,7 +891,7 @@ public class LearnAllProductsAdaptive {
 				}
 
 				for (String symbol : extendedAlphabet) {
-					if (!product1Alphabet.containsSymbol(symbol)) {
+					if (!previousProductAlphabet.containsSymbol(symbol)) {
 						for (Integer newState : adaptedHypothesis.getStates()) {
 							adaptedHypothesis.addTransition(newState, symbol, newState, Utils.OMEGA_SYMBOL);
 						}
@@ -932,29 +917,50 @@ public class LearnAllProductsAdaptive {
 			Experiment.MealyExperiment<String, Word<String>> experiment = new Experiment.MealyExperiment<String, Word<String>>(
 					learner, eqOracle, productAlphabet);
 
-			// Run experiment
-			if (i == 0) {
-				experiment.run(true, null);
-			} else {
-				experiment.run(false, null);
-			}
+			// Run the product with the current adaptive seed (or scratch for the first product).
+			// Use the learner's internal adapted hypothesis/tree, not the previous product's raw hypothesis.
+			experiment.run(false, null, (i == 0 ? null : tree_round2));
 
-		// For Product 1, save tree and hypothesis for immediate next product
-		// For other products, we'll re-learn Product 1 fresh before the next one
-		if (i == 0) {
+			// Collect the tree/hypothesis produced by the completed product learning.
 			tree_round2 = experiment.getDiscrtree();
 			if (tree_round2 == null) {
 				tree_round2 = learner.getDiscriminationTree();
 				System.out.println("WARNING: Got tree from learner instead of experiment");
 			}
-			product1Alphabet = (GrowingAlphabet<String>) learner.get_alphabet_symbol();
-			previousHypothesis = (CompactMealy<String, Word<String>>) experiment.getFinalHypothesis();
-			System.out.println("✓ Saved Product 1's tree and hypothesis for Product 2");
-		}
 
-			// Collect metrics
-			StatisticSUL<String, Word<String>> currentMqRst = (i == 0) ? mq_rst : mq_rst_adaptive;
-			StatisticSUL<String, Word<String>> currentMqSym = (i == 0) ? mq_sym : mq_sym_adaptive;
+			// Second pass: learn the current product again from scratch to produce the round-7 seed for the next product.
+			GrowingAlphabet<String> round7Alphabet = new GrowingMapAlphabet<>(productAlphabet);
+			MembershipOracle<String, Word<Word<String>>> round7MqOracle = new SULOracle<String, Word<String>>(mq_sul);
+			IKearnsVaziraniMealyBuilder<Object, String, Word<String>> round7Builder = new IKearnsVaziraniMealyBuilder<>();
+			round7Builder.setOracle(round7MqOracle);
+			round7Builder.setAlphabet(combinedAlphabet);
+			IKearnsVaziraniMealy<String, Word<String>> round7Learner = (IKearnsVaziraniMealy<String, Word<String>>) round7Builder
+					.withAlphabet(round7Alphabet)
+					.create(null, null);
+
+			Experiment.MealyExperiment<String, Word<String>> round7Experiment = new Experiment.MealyExperiment<String, Word<String>>(
+					round7Learner, eqOracle, productAlphabet);
+			round7Experiment.run(true, null, null);
+
+			tree_round2 = round7Experiment.getDiscrtree();
+			if (tree_round2 == null) {
+				tree_round2 = round7Learner.getDiscriminationTree();
+				System.out.println("WARNING: Got tree from round-7 experiment instead of experiment");
+			}
+
+			GrowingAlphabet<String> nextProductAlphabet = round7Alphabet;
+			CompactMealy<String, Word<String>> nextProductHypothesis = (CompactMealy<String, Word<String>>) round7Experiment
+					.getFinalHypothesis();
+			if (nextProductHypothesis == null) {
+				throw new IllegalStateException("Round-7 experiment failed to return a hypothesis for " + productFile.getName());
+			}
+
+			previousProductAlphabet = nextProductAlphabet;
+			previousHypothesis = nextProductHypothesis;
+			System.out.println("✓ Saved " + productFile.getName() + " round-7 tree and hypothesis for the next product");
+
+			StatisticSUL<String, Word<String>> currentMqRst = (mq_rst_adaptive != null) ? mq_rst_adaptive : mq_rst;
+			StatisticSUL<String, Word<String>> currentMqSym = (mq_sym_adaptive != null) ? mq_sym_adaptive : mq_sym;
 
 			ProductMetrics metrics = new ProductMetrics();
 			metrics.productName = productFile.getName();
@@ -1008,7 +1014,7 @@ public class LearnAllProductsAdaptive {
 			System.out.println("Equivalent: " + (metrics.equivalent ? "Yes" : "No"));
 			System.out.println("Alphabet: " + metrics.alphabetSize + " symbols");
 			if (i > 0) {
-				System.out.println("✓ Tree reused from Product 1 (FRESH)");
+				System.out.println("✓ Tree reused from the previous ordered product");
 				if (cachedOracle != null) {
 					cachedOracle.printStatistics("MQ CACHE");
 					System.out.println("MQ cache: saved " + metrics.cacheHits + " queries ("
@@ -1037,7 +1043,7 @@ public class LearnAllProductsAdaptive {
 		System.out.println("Results saved to: " + excelFilename);
 		System.out.println("\nStrategy Used:");
 		System.out.println("  • First product in the D' order: Learned from scratch");
-		System.out.println("  • Remaining products: Each reused a fresh tree from the first ordered product");
+		System.out.println("  • Remaining products: Each reused the previous ordered product's tree");
 		System.out.println("  • First ordered product was re-learned " + (orderedProducts.size() - 1) + " times");
 		System.out.println("  • MQ cache enabled for adaptive products (2-N)");
 		System.out.println("  • EQ cache + product-only alphabet for all products");

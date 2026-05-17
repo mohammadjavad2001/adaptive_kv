@@ -80,12 +80,20 @@ public class Experiment<A extends Object> {
     }
     
     public A run(boolean first, @Nullable A hyp_Starter) {
-        
+        return run(first, hyp_Starter, null);
+    }
+
+    public A run(boolean first, @Nullable A hyp_Starter,
+                 @Nullable MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> treeStarter) {
         if (this.finalHypothesis != null) {
             throw new IllegalStateException("Experiment has already been run");
         }
 
-        finalHypothesis = impl.run(first, hyp_Starter);
+        if (treeStarter != null) {
+            setDiscrtree(treeStarter);
+        }
+
+        finalHypothesis = impl.run(first, hyp_Starter, treeStarter);
         return finalHypothesis;
     }
 
@@ -148,9 +156,13 @@ public class Experiment<A extends Object> {
             this.inputs = inputs;
         }
 
-        public A run(boolean first, @Nullable A hyp_starter) {
+        public A run(boolean first, @Nullable A hyp_starter,
+                     @Nullable MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> treeStarter) {
             initialVisualizationShown = false;
             finalVisualizationShown = false;
+            if (treeStarter != null) {
+                setDiscrtree(treeStarter);
+            }
             rounds.increment();
             LOGGER.logPhase("Starting round " + rounds.getCount());
             System.out.println("Starting round " + rounds.getCount());
