@@ -61,15 +61,9 @@ import net.automatalib.words.impl.Alphabets;
 import net.automatalib.words.GrowingAlphabet;
 import net.automatalib.words.impl.GrowingMapAlphabet;
 import net.automatalib.words.Alphabet;
-import net.automatalib.graphs.concepts.GraphViewable;
-import net.automatalib.visualization.Visualization;
-import net.automatalib.visualization.VisualizationHelper.EdgeAttrs;
 import de.learnlib.datastructure.discriminationtree.MultiDTree;
 import de.learnlib.datastructure.discriminationtree.model.AbstractWordBasedDTNode;
-import de.learnlib.ds.JointCounterOracle;
-import de.learnlib.filter.statistic.oracle.CounterSymbolQueryOracle;
 
-// Apache POI imports for Excel
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import java.util.concurrent.ConcurrentHashMap;
@@ -82,7 +76,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * because answerQuery(prefix, suffix) returns different output than answerQuery(concat)
  */
 class AdaptiveCachedMembershipOracle<I, O> implements MembershipOracle<I, O> {
-    private final MembershipOracle<I, O> delegate;
+    private MembershipOracle<I, O> delegate;
     // Use Pair<prefix, suffix> as cache key to correctly distinguish queries
     private final Map<Pair<Word<I>, Word<I>>, O> cache;
     private int cacheHits = 0;
@@ -164,6 +158,24 @@ class AdaptiveCachedMembershipOracle<I, O> implements MembershipOracle<I, O> {
         cacheHits = 0;
         cacheMisses = 0;
     }
+
+    private Object cacheContext = null;
+
+    /**
+     * Replace the underlying delegate oracle and optionally switch cache context.
+     * If the context changes, the cache is invalidated first.
+     */
+    public void setDelegate(MembershipOracle<I, O> newDelegate, Object newContext) {
+        if (cacheContext == null || !cacheContext.equals(newContext)) {
+            clearCache();
+            cacheContext = newContext;
+        }
+        this.delegate = newDelegate;
+    }
+
+    public void setDelegate(MembershipOracle<I, O> newDelegate) {
+        setDelegate(newDelegate, null);
+    }
 }
 
 public class LearnAllProductsAdaptive {
@@ -186,9 +198,7 @@ public class LearnAllProductsAdaptive {
 		int rounds;
 		long mqResets;
 		long mqSymbols;
-		/** Count of {@code pre()} on the EQ SUL (one increment per EQ-side membership query reset). */
 		long eqResets;
-		/** Count of {@code step()} on the EQ SUL (total input symbols applied during equivalence testing). */
 		long eqSymbols;
 		int states;
 		int alphabetSize;
@@ -632,7 +642,13 @@ public class LearnAllProductsAdaptive {
 		StatisticSUL<String, Word<String>> eq_sym = new SymbolCounterSUL<>("EQ", eqSulSim);
 		StatisticSUL<String, Word<String>> eq_rst = new ResetCounterSUL<>("EQ", eq_sym);
 		SUL<String, Word<String>> eq_sul = eq_rst;
-		cachedEqOracle = new AdaptiveCachedMembershipOracle<>(new SULOracle<>(eq_sul));
+		if (cachedEqOracle == null) {
+			cachedEqOracle = new AdaptiveCachedMembershipOracle<>(new SULOracle<>(eq_sul));
+			System.out.println("✓ EQ cache layer created for Product 1");
+		} else {
+			cachedEqOracle.setDelegate(new SULOracle<>(eq_sul));
+			System.out.println("✓ EQ cache reused and delegate updated for Product 1");
+		}
 
 		EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = buildEqOracle(
 				rnd_seed, line, mealyMachine, cachedEqOracle, eq_sul);
@@ -862,10 +878,18 @@ public class LearnAllProductsAdaptive {
 				MembershipOracle<String, Word<Word<String>>> mqOracle = new SULOracle<String, Word<String>>(
 						mq_sul_adaptive);
 
-				// 🔥 Enable Cache Layer for Adaptive Learning to reduce duplicate queries
-				cachedOracle = new AdaptiveCachedMembershipOracle<>(mqOracle);
+				// 🔥 Enable / Reuse Cache Layer for Adaptive Learning to reduce duplicate queries
+				if (cachedOracle == null) {
+					
+					cachedOracle = new AdaptiveCachedMembershipOracle<>(mqOracle);
+					System.out.println("✓ MQ cache layer created for Product " + (i + 1) + " - duplicate queries will be avoided");
+				} else {
+					// keep existing cache entries from previous products and point the
+					// delegate to the current MQ oracle so cached answers can be reused.
+					cachedOracle.setDelegate(mqOracle);
+					System.out.println("✓ MQ cache reused and delegate updated for Product " + (i + 1));
+				}
 				mqOracle = cachedOracle;
-				System.out.println("✓ Cache layer enabled for Product " + (i + 1) + " - duplicate queries will be avoided");
 
 				IKearnsVaziraniMealyBuilder<Object, String, Word<String>> builder = new IKearnsVaziraniMealyBuilder<>();
 				builder.setOracle(mqOracle);
@@ -910,7 +934,13 @@ public class LearnAllProductsAdaptive {
 			StatisticSUL<String, Word<String>> eq_sym = new SymbolCounterSUL<>("EQ", eqSulSim);
 			StatisticSUL<String, Word<String>> eq_rst = new ResetCounterSUL<>("EQ", eq_sym);
 			SUL<String, Word<String>> eq_sul = eq_rst;
-			cachedEqOracle = new AdaptiveCachedMembershipOracle<>(new SULOracle<>(eq_sul));
+			if (cachedEqOracle == null) {
+				cachedEqOracle = new AdaptiveCachedMembershipOracle<>(new SULOracle<>(eq_sul));
+				System.out.println("✓ EQ cache layer created for Product " + (i + 1));
+			} else {
+				cachedEqOracle.setDelegate(new SULOracle<>(eq_sul));
+				System.out.println("✓ EQ cache reused and delegate updated for Product " + (i + 1));
+			}
 
 			EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = buildEqOracle(
 					rnd_seed, line, mealyMachine, cachedEqOracle, eq_sul);
@@ -919,6 +949,11 @@ public class LearnAllProductsAdaptive {
 
 			// Run the product with the current adaptive seed (or scratch for the first product).
 			// Use the learner's internal adapted hypothesis/tree, not the previous product's raw hypothesis.
+			// Capture cache statistics before running so we can compute per-product deltas when caches are shared.
+			int mqCacheHitsBefore = (cachedOracle != null) ? cachedOracle.getCacheHits() : 0;
+			int mqCacheMissesBefore = (cachedOracle != null) ? cachedOracle.getCacheMisses() : 0;
+			int eqCacheHitsBefore = (cachedEqOracle != null) ? cachedEqOracle.getCacheHits() : 0;
+			int eqCacheMissesBefore = (cachedEqOracle != null) ? cachedEqOracle.getCacheMisses() : 0;
 			experiment.run(false, null, (i == 0 ? null : tree_round2));
 
 			// Collect the tree/hypothesis produced by the completed product learning.
@@ -974,10 +1009,12 @@ public class LearnAllProductsAdaptive {
 			metrics.newSymbolsAdded = (i == 0) ? 0 : (learner.get_alphabet_symbol().size() - productAlphabet.size());
 			metrics.isAdaptive = (i > 0);
 			
-			// MQ cache statistics (adaptive products only)
-			if (i > 0 && cachedOracle != null) {
-				metrics.cacheHits = cachedOracle.getCacheHits();
-				metrics.cacheMisses = cachedOracle.getCacheMisses();
+			// MQ cache statistics (per-product delta when caches are shared)
+			if (cachedOracle != null) {
+				int hitsAfter = cachedOracle.getCacheHits();
+				int missesAfter = cachedOracle.getCacheMisses();
+				metrics.cacheHits = hitsAfter - mqCacheHitsBefore;
+				metrics.cacheMisses = missesAfter - mqCacheMissesBefore;
 				metrics.cacheSize = cachedOracle.getCacheSize();
 				int totalMqCache = metrics.cacheHits + metrics.cacheMisses;
 				metrics.cacheHitRate = (totalMqCache > 0) ? (metrics.cacheHits * 100.0 / totalMqCache) : 0.0;
@@ -987,10 +1024,12 @@ public class LearnAllProductsAdaptive {
 				metrics.cacheSize = 0;
 				metrics.cacheHitRate = 0.0;
 			}
-			// EQ cache statistics (all products)
+			// EQ cache statistics (per-product delta)
 			if (cachedEqOracle != null) {
-				metrics.eqCacheHits = cachedEqOracle.getCacheHits();
-				metrics.eqCacheMisses = cachedEqOracle.getCacheMisses();
+				int eqHitsAfter = cachedEqOracle.getCacheHits();
+				int eqMissesAfter = cachedEqOracle.getCacheMisses();
+				metrics.eqCacheHits = eqHitsAfter - eqCacheHitsBefore;
+				metrics.eqCacheMisses = eqMissesAfter - eqCacheMissesBefore;
 				metrics.eqCacheSize = cachedEqOracle.getCacheSize();
 				int totalEqCache = metrics.eqCacheHits + metrics.eqCacheMisses;
 				metrics.eqCacheHitRate = (totalEqCache > 0) ? (metrics.eqCacheHits * 100.0 / totalEqCache) : 0.0;
