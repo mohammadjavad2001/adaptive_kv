@@ -82,15 +82,58 @@ import java.util.concurrent.ConcurrentHashMap;
  * because answerQuery(prefix, suffix) returns different output than answerQuery(concat)
  */
 class AdaptiveCachedMembershipOracle<I, O> implements MembershipOracle<I, O> {
-    private final MembershipOracle<I, O> delegate;
+    private MembershipOracle<I, O> delegate;
     // Use Pair<prefix, suffix> as cache key to correctly distinguish queries
-    private final Map<Pair<Word<I>, Word<I>>, O> cache;
+    private Map<Pair<Word<I>, Word<I>>, O> scopeCache;
+    /** Shared across products: only queries using symbols outside the current product alphabet (Ω). */
+    private Map<Pair<Word<I>, Word<I>>, O> crossProductOmegaCache;
+    private Alphabet<I> productAlphabet;
+    private boolean allowCrossProductOmega;
     private int cacheHits = 0;
     private int cacheMisses = 0;
     
     public AdaptiveCachedMembershipOracle(MembershipOracle<I, O> delegate) {
+        this(delegate, new ConcurrentHashMap<>(), null, null, false);
+    }
+
+    public AdaptiveCachedMembershipOracle(MembershipOracle<I, O> delegate, Map<Pair<Word<I>, Word<I>>, O> scopeCache,
+            Map<Pair<Word<I>, Word<I>>, O> crossProductOmegaCache, Alphabet<I> productAlphabet,
+            boolean allowCrossProductOmega) {
         this.delegate = delegate;
-        this.cache = new ConcurrentHashMap<>();
+        this.scopeCache = scopeCache;
+        this.crossProductOmegaCache = crossProductOmegaCache;
+        this.productAlphabet = productAlphabet;
+        this.allowCrossProductOmega = allowCrossProductOmega;
+    }
+
+    public void reconfigure(MembershipOracle<I, O> delegate, Map<Pair<Word<I>, Word<I>>, O> scopeCache,
+            Map<Pair<Word<I>, Word<I>>, O> crossProductOmegaCache, Alphabet<I> productAlphabet,
+            boolean allowCrossProductOmega) {
+        this.delegate = delegate;
+        this.scopeCache = scopeCache;
+        this.crossProductOmegaCache = crossProductOmegaCache;
+        this.productAlphabet = productAlphabet;
+        this.allowCrossProductOmega = allowCrossProductOmega;
+    }
+
+    /** Resets per-product hit/miss counters; keeps accumulated cache entries. */
+    public void resetStatistics() {
+        cacheHits = 0;
+        cacheMisses = 0;
+    }
+
+    private static <I> boolean usesOnlySymbolsOutsideProduct(Word<I> prefix, Word<I> suffix, Alphabet<I> productAlphabet) {
+        for (I symbol : prefix) {
+            if (productAlphabet.containsSymbol(symbol)) {
+                return false;
+            }
+        }
+        for (I symbol : suffix) {
+            if (productAlphabet.containsSymbol(symbol)) {
+                return false;
+            }
+        }
+        return true;
     }
     
     @Override
@@ -99,16 +142,28 @@ class AdaptiveCachedMembershipOracle<I, O> implements MembershipOracle<I, O> {
         // answerQuery("a", "b") != answerQuery("", "ab") in Mealy machines!
         Pair<Word<I>, Word<I>> cacheKey = Pair.of(prefix, suffix);
         
-        // Check cache first
-        if (cache.containsKey(cacheKey)) {
+        if (scopeCache.containsKey(cacheKey)) {
             cacheHits++;
-            return cache.get(cacheKey);
+            return scopeCache.get(cacheKey);
+        }
+
+        if (allowCrossProductOmega && crossProductOmegaCache != null && productAlphabet != null
+                && usesOnlySymbolsOutsideProduct(prefix, suffix, productAlphabet)
+                && crossProductOmegaCache.containsKey(cacheKey)) {
+            cacheHits++;
+            O omegaAnswer = crossProductOmegaCache.get(cacheKey);
+            scopeCache.put(cacheKey, omegaAnswer);
+            return omegaAnswer;
         }
         
         // Cache miss - query the delegate oracle
         cacheMisses++;
         O result = delegate.answerQuery(prefix, suffix);
-        cache.put(cacheKey, result);
+        scopeCache.put(cacheKey, result);
+        if (allowCrossProductOmega && crossProductOmegaCache != null && productAlphabet != null
+                && usesOnlySymbolsOutsideProduct(prefix, suffix, productAlphabet)) {
+            crossProductOmegaCache.put(cacheKey, result);
+        }
         return result;
     }
     
@@ -138,7 +193,7 @@ class AdaptiveCachedMembershipOracle<I, O> implements MembershipOracle<I, O> {
         System.out.println("║  Total Queries:    " + String.format("%-30d", totalQueries) + "║");
         System.out.println("║  Cache Hits:       " + String.format("%-30d", cacheHits) + "║");
         System.out.println("║  Cache Misses:     " + String.format("%-30d", cacheMisses) + "║");
-        System.out.println("║  Cache Size:       " + String.format("%-30d", cache.size()) + "║");
+        System.out.println("║  Cache Size:       " + String.format("%-30d", scopeCache.size()) + "║");
         if (totalQueries > 0) {
             double hitRate = (cacheHits * 100.0) / totalQueries;
             System.out.println("║  Hit Rate:         " + String.format("%-29.2f%%", hitRate) + "║");
@@ -156,11 +211,11 @@ class AdaptiveCachedMembershipOracle<I, O> implements MembershipOracle<I, O> {
     }
     
     public int getCacheSize() {
-        return cache.size();
+        return scopeCache.size();
     }
     
     public void clearCache() {
-        cache.clear();
+        scopeCache.clear();
         cacheHits = 0;
         cacheMisses = 0;
     }
@@ -176,6 +231,67 @@ public class LearnAllProductsAdaptive {
 	// Store cached oracles for statistics
 	private static AdaptiveCachedMembershipOracle<String, Word<Word<String>>> cachedOracle = null;
 	private static AdaptiveCachedMembershipOracle<String, Word<Word<String>>> cachedEqOracle = null;
+	// Scoped caches: never mix products or oracle kinds (adaptive-extended vs product-only vs EQ)
+	private static final Map<String, Map<Pair<Word<String>, Word<String>>, Word<Word<String>>>> cacheByScope = new ConcurrentHashMap<>();
+	/** Cross-product reuse only for Ω queries (symbols outside current product alphabet). */
+	private static final Map<Pair<Word<String>, Word<String>>, Word<Word<String>>> crossProductOmegaMqCache = new ConcurrentHashMap<>();
+
+	private static String mqAdaptiveScope(String productName) {
+		return productName + "#mq-adaptive";
+	}
+
+	private static String mqProductScope(String productName) {
+		return productName + "#mq-product";
+	}
+
+	private static String eqScope(String productName) {
+		return productName + "#eq";
+	}
+
+	private static Map<Pair<Word<String>, Word<String>>, Word<Word<String>>> scopeCacheFor(String scopeKey) {
+		return cacheByScope.computeIfAbsent(scopeKey, k -> new ConcurrentHashMap<>());
+	}
+
+	private static int totalCacheEntries() {
+		int total = crossProductOmegaMqCache.size();
+		for (Map<Pair<Word<String>, Word<String>>, Word<Word<String>>> scope : cacheByScope.values()) {
+			total += scope.size();
+		}
+		return total;
+	}
+
+	private static AdaptiveCachedMembershipOracle<String, Word<Word<String>>> wrapMqCache(
+			MembershipOracle<String, Word<Word<String>>> delegate, String scopeKey,
+			Alphabet<String> productAlphabet, boolean adaptiveExtendedOracle, boolean resetProductStats) {
+		Map<Pair<Word<String>, Word<String>>, Word<Word<String>>> scopeCache = scopeCacheFor(scopeKey);
+		Map<Pair<Word<String>, Word<String>>, Word<Word<String>>> omegaCache = adaptiveExtendedOracle
+				? crossProductOmegaMqCache : null;
+		boolean allowOmega = adaptiveExtendedOracle;
+		if (cachedOracle == null) {
+			cachedOracle = new AdaptiveCachedMembershipOracle<>(delegate, scopeCache, omegaCache, productAlphabet,
+					allowOmega);
+		} else {
+			cachedOracle.reconfigure(delegate, scopeCache, omegaCache, productAlphabet, allowOmega);
+			if (resetProductStats) {
+				cachedOracle.resetStatistics();
+			}
+		}
+		return cachedOracle;
+	}
+
+	private static AdaptiveCachedMembershipOracle<String, Word<Word<String>>> wrapEqCache(
+			MembershipOracle<String, Word<Word<String>>> delegate, String scopeKey, boolean resetProductStats) {
+		Map<Pair<Word<String>, Word<String>>, Word<Word<String>>> scopeCache = scopeCacheFor(scopeKey);
+		if (cachedEqOracle == null) {
+			cachedEqOracle = new AdaptiveCachedMembershipOracle<>(delegate, scopeCache, null, null, false);
+		} else {
+			cachedEqOracle.reconfigure(delegate, scopeCache, null, null, false);
+			if (resetProductStats) {
+				cachedEqOracle.resetStatistics();
+			}
+		}
+		return cachedEqOracle;
+	}
 
 	// Statistics storage
 	private static List<ProductMetrics> allProductMetrics = new ArrayList<>();
@@ -632,7 +748,7 @@ public class LearnAllProductsAdaptive {
 		StatisticSUL<String, Word<String>> eq_sym = new SymbolCounterSUL<>("EQ", eqSulSim);
 		StatisticSUL<String, Word<String>> eq_rst = new ResetCounterSUL<>("EQ", eq_sym);
 		SUL<String, Word<String>> eq_sul = eq_rst;
-		cachedEqOracle = new AdaptiveCachedMembershipOracle<>(new SULOracle<>(eq_sul));
+		wrapEqCache(new SULOracle<>(eq_sul), eqScope(product1File.getName()), true);
 
 		EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = buildEqOracle(
 				rnd_seed, line, mealyMachine, cachedEqOracle, eq_sul);
@@ -737,7 +853,8 @@ public class LearnAllProductsAdaptive {
 		System.out.println("╚════════════════════════════════════════════════════════════════╝");
 		System.out.println("\nFound " + orderedProducts.size() + " products to learn\n");
 		System.out.println("Strategy: Learn in optimal D' order");
-		System.out.println("          First learn the smallest alphabet product, then products that add fewer new symbols\n");
+		System.out.println("          First learn the smallest alphabet product, then products that add fewer new symbols");
+		System.out.println("          MQ cache: per-product + cross-product Ω-only; EQ cache: per-product only\n");
 
 		// Learn each product using the previous product's tree/hypothesis chain
 		for (int i = 0; i < orderedProducts.size(); i++) {
@@ -802,7 +919,10 @@ public class LearnAllProductsAdaptive {
 			if (i == 0) {
 			// First ordered product: initialize from scratch and learn to round 7
 			previousProductAlphabet = new GrowingMapAlphabet<>(Alphabets.fromCollection(allInputAlphabets));
-			MembershipOracle<String, Word<Word<String>>> mqOracle = new SULOracle<String, Word<String>>(mq_sul);
+			MembershipOracle<String, Word<Word<String>>> mqOracle = wrapMqCache(
+					new SULOracle<String, Word<String>>(mq_sul), mqProductScope(productFile.getName()),
+					productAlphabet, false, true);
+			System.out.println("✓ MQ cache enabled (product-scoped)");
 			IKearnsVaziraniMealyBuilder<Object, String, Word<String>> builder = new IKearnsVaziraniMealyBuilder<>();
 			builder.setOracle(mqOracle);
 			builder.setAlphabet(combinedAlphabet);
@@ -862,10 +982,9 @@ public class LearnAllProductsAdaptive {
 				MembershipOracle<String, Word<Word<String>>> mqOracle = new SULOracle<String, Word<String>>(
 						mq_sul_adaptive);
 
-				// 🔥 Enable Cache Layer for Adaptive Learning to reduce duplicate queries
-				cachedOracle = new AdaptiveCachedMembershipOracle<>(mqOracle);
-				mqOracle = cachedOracle;
-				System.out.println("✓ Cache layer enabled for Product " + (i + 1) + " - duplicate queries will be avoided");
+				mqOracle = wrapMqCache(mqOracle, mqAdaptiveScope(productFile.getName()), productAlphabet, true, true);
+				System.out.println("✓ MQ cache for Product " + (i + 1) + " (scoped; Ω cross-product entries: "
+						+ crossProductOmegaMqCache.size() + ")");
 
 				IKearnsVaziraniMealyBuilder<Object, String, Word<String>> builder = new IKearnsVaziraniMealyBuilder<>();
 				builder.setOracle(mqOracle);
@@ -910,7 +1029,8 @@ public class LearnAllProductsAdaptive {
 			StatisticSUL<String, Word<String>> eq_sym = new SymbolCounterSUL<>("EQ", eqSulSim);
 			StatisticSUL<String, Word<String>> eq_rst = new ResetCounterSUL<>("EQ", eq_sym);
 			SUL<String, Word<String>> eq_sul = eq_rst;
-			cachedEqOracle = new AdaptiveCachedMembershipOracle<>(new SULOracle<>(eq_sul));
+			wrapEqCache(new SULOracle<>(eq_sul), eqScope(productFile.getName()), true);
+			System.out.println("✓ EQ cache for Product " + (i + 1) + " (product-scoped only)");
 
 			EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = buildEqOracle(
 					rnd_seed, line, mealyMachine, cachedEqOracle, eq_sul);
@@ -930,7 +1050,9 @@ public class LearnAllProductsAdaptive {
 
 			// Second pass: learn the current product again from scratch to produce the round-7 seed for the next product.
 			GrowingAlphabet<String> round7Alphabet = new GrowingMapAlphabet<>(productAlphabet);
-			MembershipOracle<String, Word<Word<String>>> round7MqOracle = new SULOracle<String, Word<String>>(mq_sul);
+			MembershipOracle<String, Word<Word<String>>> round7MqOracle = wrapMqCache(
+					new SULOracle<String, Word<String>>(mq_sul), mqProductScope(productFile.getName()),
+					productAlphabet, false, false);
 			IKearnsVaziraniMealyBuilder<Object, String, Word<String>> round7Builder = new IKearnsVaziraniMealyBuilder<>();
 			round7Builder.setOracle(round7MqOracle);
 			round7Builder.setAlphabet(combinedAlphabet);
@@ -974,11 +1096,11 @@ public class LearnAllProductsAdaptive {
 			metrics.newSymbolsAdded = (i == 0) ? 0 : (learner.get_alphabet_symbol().size() - productAlphabet.size());
 			metrics.isAdaptive = (i > 0);
 			
-			// MQ cache statistics (adaptive products only)
-			if (i > 0 && cachedOracle != null) {
+			// MQ cache statistics (per-product hits; cache size is cumulative across products)
+			if (cachedOracle != null) {
 				metrics.cacheHits = cachedOracle.getCacheHits();
 				metrics.cacheMisses = cachedOracle.getCacheMisses();
-				metrics.cacheSize = cachedOracle.getCacheSize();
+				metrics.cacheSize = totalCacheEntries();
 				int totalMqCache = metrics.cacheHits + metrics.cacheMisses;
 				metrics.cacheHitRate = (totalMqCache > 0) ? (metrics.cacheHits * 100.0 / totalMqCache) : 0.0;
 			} else {
@@ -987,7 +1109,7 @@ public class LearnAllProductsAdaptive {
 				metrics.cacheSize = 0;
 				metrics.cacheHitRate = 0.0;
 			}
-			// EQ cache statistics (all products)
+			// EQ cache statistics (per-product hits; cache size is cumulative across products)
 			if (cachedEqOracle != null) {
 				metrics.eqCacheHits = cachedEqOracle.getCacheHits();
 				metrics.eqCacheMisses = cachedEqOracle.getCacheMisses();
@@ -1015,16 +1137,18 @@ public class LearnAllProductsAdaptive {
 			System.out.println("Alphabet: " + metrics.alphabetSize + " symbols");
 			if (i > 0) {
 				System.out.println("✓ Tree reused from the previous ordered product");
-				if (cachedOracle != null) {
-					cachedOracle.printStatistics("MQ CACHE");
-					System.out.println("MQ cache: saved " + metrics.cacheHits + " queries ("
-							+ String.format("%.1f%%", metrics.cacheHitRate) + " hit rate)");
-				}
+			}
+			if (cachedOracle != null) {
+				cachedOracle.printStatistics("MQ CACHE (this product)");
+				System.out.println("MQ cache this product: saved " + metrics.cacheHits + " queries ("
+						+ String.format("%.1f%%", metrics.cacheHitRate) + " hit rate)");
+				System.out.println("MQ cache total entries (all scopes): " + totalCacheEntries());
 			}
 			if (cachedEqOracle != null) {
-				cachedEqOracle.printStatistics("EQ CACHE");
-				System.out.println("EQ cache: saved " + metrics.eqCacheHits + " queries ("
+				cachedEqOracle.printStatistics("EQ CACHE (this product)");
+				System.out.println("EQ cache this product: saved " + metrics.eqCacheHits + " queries ("
 						+ String.format("%.1f%%", metrics.eqCacheHitRate) + " hit rate)");
+				System.out.println("EQ cache scope size: " + cachedEqOracle.getCacheSize() + " entries");
 			}
 			System.out.println("EQ alphabet: " + productAlphabet.size() + " symbols (product-only)");
 			System.out.println("====================================================\n");
@@ -1045,7 +1169,8 @@ public class LearnAllProductsAdaptive {
 		System.out.println("  • First product in the D' order: Learned from scratch");
 		System.out.println("  • Remaining products: Each reused the previous ordered product's tree");
 		System.out.println("  • First ordered product was re-learned " + (orderedProducts.size() - 1) + " times");
-		System.out.println("  • MQ cache enabled for adaptive products (2-N)");
+		System.out.println("  • MQ cache: per-product scopes; cross-product only for Ω (non-product symbols)");
+		System.out.println("  • EQ cache: per-product only (never shared across products)");
 		System.out.println("  • EQ cache + product-only alphabet for all products");
 		
 		// Calculate total cache benefits
@@ -1054,22 +1179,22 @@ public class LearnAllProductsAdaptive {
 		int totalEqCacheHits = 0;
 		int totalEqCacheMisses = 0;
 		for (ProductMetrics m : allProductMetrics) {
-			if (m.isAdaptive) {
-				totalMqCacheHits += m.cacheHits;
-				totalMqCacheMisses += m.cacheMisses;
-			}
+			totalMqCacheHits += m.cacheHits;
+			totalMqCacheMisses += m.cacheMisses;
 			totalEqCacheHits += m.eqCacheHits;
 			totalEqCacheMisses += m.eqCacheMisses;
 		}
 		
 		if (totalMqCacheHits + totalMqCacheMisses > 0) {
 			double mqHitRate = (totalMqCacheHits * 100.0) / (totalMqCacheHits + totalMqCacheMisses);
-			System.out.println("\nMQ Cache Summary (adaptive products):");
+			System.out.println("\nMQ Cache Summary (all products):");
 			System.out.println("  • Hits: " + totalMqCacheHits + ", hit rate: " + String.format("%.2f%%", mqHitRate));
+			System.out.println("  • Total scoped entries: " + totalCacheEntries() + " (Ω cross-product: "
+					+ crossProductOmegaMqCache.size() + ")");
 		}
 		if (totalEqCacheHits + totalEqCacheMisses > 0) {
 			double eqHitRate = (totalEqCacheHits * 100.0) / (totalEqCacheHits + totalEqCacheMisses);
-			System.out.println("\nEQ Cache Summary (all products):");
+			System.out.println("\nEQ Cache Summary (per-product scopes):");
 			System.out.println("  • Hits: " + totalEqCacheHits + ", hit rate: " + String.format("%.2f%%", eqHitRate));
 		}
 		
