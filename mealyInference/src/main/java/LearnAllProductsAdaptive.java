@@ -335,7 +335,7 @@ public class LearnAllProductsAdaptive {
 		int learnedStates = finalHyp.getStates().size();
 		Word<String> separatingWord = DeterministicEquivalenceTest.findSeparatingWord(
 				mealyMachine, finalHyp, productAlphabet);
-		boolean isEquivalent = (separatingWord == null);
+		boolean isEquivalent = finalHyp.getInitialState() != null && (separatingWord == null);
 
 		metrics.originalStates = expectedStates;
 		metrics.equivalent = isEquivalent;
@@ -351,7 +351,11 @@ public class LearnAllProductsAdaptive {
 			System.out.println("║  ✗ NOT EQUIVALENT - Model incomplete!");
 			System.out.println("║  Separating word: " + separatingWord);
 			System.out.println("║  Expected output: " + mealyMachine.computeOutput(separatingWord));
-			System.out.println("║  Learned output:  " + finalHyp.computeOutput(separatingWord));
+			if (finalHyp.getInitialState() == null) {
+				System.out.println("║  Learned output: undefined - hypothesis has no initial state");
+			} else {
+				System.out.println("║  Learned output:  " + finalHyp.computeOutput(separatingWord));
+			}
 		}
 		System.out.println("╚═══════════════════════════════════════════════════════════╝");
 	}
@@ -599,6 +603,24 @@ public class LearnAllProductsAdaptive {
 			Random rnd_seed, CommandLine line, CompactMealy<String, Word<String>> mealyss,
 			MembershipOracle<String, Word<Word<String>>> oracleForEQoracle,
 			SUL<String, Word<String>> eq_sul) {
+		return buildEqOracle(rnd_seed, line, mealyss, oracleForEQoracle, eq_sul,
+				mealyss.getInputAlphabet(), Collections.emptySet(), false);
+	}
+
+	private static EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> buildEqOracle(
+			Random rnd_seed, CommandLine line, CompactMealy<String, Word<String>> mealyss,
+			MembershipOracle<String, Word<Word<String>>> oracleForEQoracle,
+			SUL<String, Word<String>> eq_sul, Alphabet<String> currentAlphabet,
+			Set<String> newSymbols, boolean useHybridOracle) {
+		if (useHybridOracle && previousHypothesis != null) {
+			// Keep the existing previous-product chain and product-only EQ cache.
+			List<MealyMachine<?, String, ?, Word<String>>> previousProducts =
+					Collections.singletonList(previousHypothesis);
+			return new HybridAdaptiveEQOracle<>(
+					oracleForEQoracle, previousProducts, currentAlphabet, newSymbols,
+					1000, 3, 15, 2, rnd_seed);
+		}
+
 		EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle;
 		if (!line.hasOption(EQ)) {
 			int wpLookahead = 2;
@@ -896,6 +918,16 @@ public class LearnAllProductsAdaptive {
 			System.out.println("\nProduct alphabet contains " + productAlphabet.size() + " symbols");
 
 			// Manage alphabet collection
+			// Smart testing focuses on symbols absent from the previous product's seed.
+			Set<String> newSymbols = new HashSet<>();
+			if (i > 0) {
+				for (String symbol : productAlphabet) {
+					if (!previousProductAlphabet.containsSymbol(symbol)) {
+						newSymbols.add(symbol);
+					}
+				}
+			}
+
 			if (i == 0) {
 				
 				allInputAlphabets.clear();
@@ -1033,7 +1065,8 @@ public class LearnAllProductsAdaptive {
 			System.out.println("✓ EQ cache for Product " + (i + 1) + " (product-scoped only)");
 
 			EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle = buildEqOracle(
-					rnd_seed, line, mealyMachine, cachedEqOracle, eq_sul);
+					rnd_seed, line, mealyMachine, cachedEqOracle, eq_sul,
+					productAlphabet, newSymbols, i > 0);
 			Experiment.MealyExperiment<String, Word<String>> experiment = new Experiment.MealyExperiment<String, Word<String>>(
 					learner, eqOracle, productAlphabet);
 
@@ -1172,6 +1205,7 @@ public class LearnAllProductsAdaptive {
 		System.out.println("  • MQ cache: per-product scopes; cross-product only for Ω (non-product symbols)");
 		System.out.println("  • EQ cache: per-product only (never shared across products)");
 		System.out.println("  • EQ cache + product-only alphabet for all products");
+		System.out.println("  • Products 2+: HybridAdaptiveEQOracle (Smart then Wp, both through the EQ cache)");
 		
 		// Calculate total cache benefits
 		int totalMqCacheHits = 0;

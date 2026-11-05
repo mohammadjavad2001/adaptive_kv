@@ -276,10 +276,12 @@ public class IKearnsVaziraniMealy<I, O> extends KearnsVaziraniMealy<I, O> {
                             currentNode.setData(null);
                         } else {
                             // Target leaf already has data - merge states
-                            // Keep epsilon access sequence if present
-                            // if (currentData.accessSequence.isEmpty()) {
-                            //     siftedNode.getData().accessSequence = Word.epsilon();
-                            // }
+                            // Preserve the initial access sequence when its state is merged.
+                            // Reuse StateInfo because accessSequence is immutable.
+                            if (currentData.accessSequence.isEmpty()) {
+                                siftedNode.setData(currentData);
+                                currentData.dtNode = siftedNode;
+                            }
                             removeLeaf(currentNode);
                         }
                         break; // Restart iteration after modification
@@ -353,16 +355,33 @@ public class IKearnsVaziraniMealy<I, O> extends KearnsVaziraniMealy<I, O> {
                     siblingData.dtNode = parentNode;
                 }
             } else {
-                Map<Word<O>, AbstractWordBasedDTNode<I, Word<O>, StateInfo<I, Word<O>>>> childMap =
-                    siblingNode.getChildEntries().stream()
-                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-                parentNode.replaceChildren(childMap);
-                parentNode.setDiscriminator(siblingNode.getDiscriminator());
-                parentNode.setData(null);
+                // Recreate moved nodes so parent links and depths match their new position.
+                copyPromotedSubtree(siblingNode, parentNode);
             }
         } else {
             // Root with epsilon discriminator - just clear data
             leaf.setData(null);
+        }
+    }
+
+    private void copyPromotedSubtree(
+            AbstractWordBasedDTNode<I, Word<O>, StateInfo<I, Word<O>>> source,
+            AbstractWordBasedDTNode<I, Word<O>, StateInfo<I, Word<O>>> target) {
+        target.replaceChildren(null);
+        target.setData(null);
+        target.setDiscriminator(source.getDiscriminator());
+        if (source.isLeaf()) {
+            StateInfo<I, Word<O>> data = source.getData();
+            target.setData(data);
+            if (data != null) {
+                data.dtNode = target;
+            }
+            return;
+        }
+        target.replaceChildren(new HashMap<>());
+        for (Map.Entry<Word<O>, AbstractWordBasedDTNode<I, Word<O>, StateInfo<I, Word<O>>>> entry
+                : source.getChildEntries()) {
+            copyPromotedSubtree(entry.getValue(), target.child(entry.getKey()));
         }
     }
 
@@ -432,6 +451,9 @@ public class IKearnsVaziraniMealy<I, O> extends KearnsVaziraniMealy<I, O> {
             }
         }
         
+        if (newhyp.getInitialState() == null) {
+            throw new IllegalStateException("Cannot rebuild hypothesis: no surviving epsilon access sequence");
+        }
         System.out.println("New hypothesis has " + newStateCount + " states");
 
         // Build transitions for all states
