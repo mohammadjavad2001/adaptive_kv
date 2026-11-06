@@ -14,11 +14,12 @@ import java.util.*;
 
 /**
  * Hybrid Adaptive Equivalence Oracle that combines smart adaptive testing
- * with fallback to exhaustive methods for completeness.
+ * with fallback to Wp tests at the configured lookahead depth.
  * 
  * Strategy:
  * 1. Try SmartAdaptiveEQOracle first (fast, targeted)
- * 2. If no counterexample found, fallback to WpMethod (exhaustive)
+ * 2. If no counterexample found, fallback to WpMethod
+ * 3. Shorten counterexamples before refinement, verifying every deletion
  */
 public class HybridAdaptiveEQOracle<I, O> implements EquivalenceOracle<MealyMachine<?, I, ?, O>, I, Word<O>> {
 
@@ -93,6 +94,7 @@ public class HybridAdaptiveEQOracle<I, O> implements EquivalenceOracle<MealyMach
         DefaultQuery<I, Word<O>> counterExample = smartOracle.findCounterExample(hypothesis, inputs);
         
         if (counterExample != null) {
+            counterExample = minimizeCounterexample(hypothesis, counterExample);
             smartOracleHits++;
             System.out.println("\n✓✓✓ SMART ORACLE SUCCESS ✓✓✓");
             System.out.println("Counterexample found: " + counterExample.getInput());
@@ -112,6 +114,7 @@ public class HybridAdaptiveEQOracle<I, O> implements EquivalenceOracle<MealyMach
         counterExample = wpMethodOracle.findCounterExample(hypothesis, inputs);
         
         if (counterExample != null) {
+            counterExample = minimizeCounterexample(hypothesis, counterExample);
             fallbackHits++;
             System.out.println("\n✓✓✓ WpMETHOD FALLBACK SUCCESS ✓✓✓");
             System.out.println("Counterexample found: " + counterExample.getInput());
@@ -125,6 +128,48 @@ public class HybridAdaptiveEQOracle<I, O> implements EquivalenceOracle<MealyMach
         }
         
         return counterExample;
+    }
+
+    /**
+     * Shorten a Mealy counterexample without caching membership answers.
+     * The first mismatching prefix needs no query: its output is already known.
+     * Every subsequent symbol deletion is checked against the real EQ oracle,
+     * so its resets and symbols remain included in the EQ counters.
+     */
+    private DefaultQuery<I, Word<O>> minimizeCounterexample(
+            MealyMachine<?, I, ?, O> hypothesis, DefaultQuery<I, Word<O>> query) {
+        // Prefix/suffix queries contain only the suffix output. Preserve those
+        // rather than interpreting a suffix output as the full input's output.
+        if (!query.getPrefix().isEmpty()) {
+            return query;
+        }
+        Word<I> input = query.getInput();
+        Word<O> expected = hypothesis.computeOutput(input);
+        Word<O> actual = query.getOutput();
+        if (actual == null || expected == null) {
+            return query;
+        }
+        for (int i = 0; i < Math.min(expected.length(), actual.length()); i++) {
+            if (!Objects.equals(expected.getSymbol(i), actual.getSymbol(i))) {
+                input = input.prefix(i + 1);
+                query = new DefaultQuery<>(input, actual.prefix(i + 1));
+                break;
+            }
+        }
+        for (int i = 0; i < input.length() && input.length() > 1;) {
+            Word<I> candidate = input.prefix(i).concat(input.subWord(i + 1));
+            DefaultQuery<I, Word<O>> shorter = new DefaultQuery<>(candidate);
+            membershipOracle.processQuery(shorter);
+            if (shorter.getOutput() != null &&
+                    !Objects.equals(hypothesis.computeOutput(candidate), shorter.getOutput())) {
+                query = shorter;
+                input = candidate;
+                i = 0;
+            } else {
+                i++;
+            }
+        }
+        return query;
     }
 
     /**

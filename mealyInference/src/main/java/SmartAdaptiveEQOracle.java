@@ -44,6 +44,9 @@ public class SmartAdaptiveEQOracle<I, O> implements EquivalenceOracle<MealyMachi
             int minLength,
             int maxLength,
             Random random) {
+        if (maxTests < 0 || minLength < 0 || maxLength < minLength) {
+            throw new IllegalArgumentException("Require maxTests >= 0 and 0 <= minLength <= maxLength");
+        }
         this.membershipOracle = membershipOracle;
         this.previousProducts = new ArrayList<>(previousProducts);
         this.currentAlphabet = currentAlphabet;
@@ -64,8 +67,23 @@ public class SmartAdaptiveEQOracle<I, O> implements EquivalenceOracle<MealyMachi
         System.out.println("New symbols to focus on: " + newSymbols.size());
         System.out.println("Generating up to " + maxTests + " smart test sequences");
         
-        // Strategy 1: Test sequences with NEW symbols (40% of tests)
-        int newSymbolTests = (int) (maxTests * 0.4);
+        // Spend half the budget exploring short extensions of reachable states.
+        // Pure random words often stay near the initial state because of self-loops.
+        List<Word<I>> accessSequences = stateCover(hypothesis, inputs);
+        int stateTests = maxTests / 2;
+        for (int i = 0; i < stateTests; i++) {
+            DefaultQuery<I, Word<O>> counterExample = testSequence(hypothesis,
+                    generateStateExtension(accessSequences));
+            if (counterExample != null) {
+                System.out.println("✓ Counterexample found using STATE EXTENSION strategy");
+                return counterExample;
+            }
+        }
+
+        // Preserve the original strategies within the remaining total budget.
+        int remainingTests = maxTests - stateTests;
+        // Strategy 1: Test sequences with NEW symbols (40% of remaining tests)
+        int newSymbolTests = (int) (remainingTests * 0.4);
         for (int i = 0; i < newSymbolTests; i++) {
             Word<I> testSeq = generateSequenceWithNewSymbols();
             DefaultQuery<I, Word<O>> counterExample = testSequence(hypothesis, testSeq);
@@ -75,8 +93,8 @@ public class SmartAdaptiveEQOracle<I, O> implements EquivalenceOracle<MealyMachi
             }
         }
         
-        // Strategy 2: Test sequences that differ between previous products (30% of tests)
-        int differenceTests = (int) (maxTests * 0.3);
+        // Strategy 2: Test sequences that differ between previous products (30% of remaining tests)
+        int differenceTests = (int) (remainingTests * 0.3);
         for (int i = 0; i < differenceTests; i++) {
             Word<I> testSeq = generateSequenceFromPreviousProductDifferences();
             DefaultQuery<I, Word<O>> counterExample = testSequence(hypothesis, testSeq);
@@ -86,8 +104,8 @@ public class SmartAdaptiveEQOracle<I, O> implements EquivalenceOracle<MealyMachi
             }
         }
         
-        // Strategy 3: Random sequences with bias towards new symbols (30% of tests)
-        int randomTests = (int) (maxTests * 0.3);
+        // Strategy 3: Random sequences with bias towards new symbols (remaining tests)
+        int randomTests = remainingTests - newSymbolTests - differenceTests;
         for (int i = 0; i < randomTests; i++) {
             Word<I> testSeq = generateBiasedRandomSequence();
             DefaultQuery<I, Word<O>> counterExample = testSequence(hypothesis, testSeq);
@@ -100,6 +118,49 @@ public class SmartAdaptiveEQOracle<I, O> implements EquivalenceOracle<MealyMachi
         System.out.println("✗ No counterexample found after " + maxTests + " tests");
         System.out.println("==============================================\n");
         return null;
+    }
+
+    private <S> List<Word<I>> stateCover(MealyMachine<S, I, ?, O> hypothesis,
+                                       Collection<? extends I> inputs) {
+        Map<S, Word<I>> reached = new LinkedHashMap<>();
+        Queue<S> pending = new ArrayDeque<>();
+        S initial = hypothesis.getInitialState();
+        if (initial == null) {
+            return Collections.singletonList(Word.epsilon());
+        }
+        reached.put(initial, Word.epsilon());
+        pending.add(initial);
+        while (!pending.isEmpty()) {
+            S state = pending.remove();
+            Word<I> access = reached.get(state);
+            // Leave room for at least one extension symbol within maxLength.
+            if (access.length() >= maxLength - 1) {
+                continue;
+            }
+            for (I input : inputs) {
+                S next = hypothesis.getSuccessor(state, input);
+                if (next != null && !reached.containsKey(next)) {
+                    reached.put(next, access.append(input));
+                    pending.add(next);
+                }
+            }
+        }
+        return new ArrayList<>(reached.values());
+    }
+
+    private Word<I> generateStateExtension(List<Word<I>> accessSequences) {
+        if (currentAlphabet.size() == 0 || maxLength == 0) {
+            return Word.epsilon();
+        }
+        Word<I> access = accessSequences.get(random.nextInt(accessSequences.size()));
+        WordBuilder<I> builder = new WordBuilder<>(access);
+        int shortest = Math.max(1, minLength - access.length());
+        int longest = Math.min(maxLength - access.length(), Math.max(3, shortest));
+        int length = shortest + random.nextInt(longest - shortest + 1);
+        for (int i = 0; i < length; i++) {
+            builder.add(currentAlphabet.getSymbol(random.nextInt(currentAlphabet.size())));
+        }
+        return builder.toWord();
     }
 
     /**
@@ -157,7 +218,7 @@ public class SmartAdaptiveEQOracle<I, O> implements EquivalenceOracle<MealyMachi
             // Check if this sequence produces different outputs in previous products
             if (hasDifferentOutputsInPreviousProducts(testSeq)) {
                 // Good! This area has differences, continue from here
-                builder.append(testSeq);
+                builder.add(nextSymbol);
                 currentSeq = testSeq;
             } else {
                 // Try a different symbol or just add it anyway

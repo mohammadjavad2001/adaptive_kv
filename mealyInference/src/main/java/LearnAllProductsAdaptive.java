@@ -194,6 +194,7 @@ public class LearnAllProductsAdaptive {
 	public static final String CLOS = "clos";
 	public static final String CACHE = "cache";
 	public static final String SEED = "seed";
+	public static final String SEED_ROUND = "seedround";
 	public static final String OUT = "out";
 	public static final String LEARN = "learn";
 	public static final String INFO = "info";
@@ -359,8 +360,8 @@ public class LearnAllProductsAdaptive {
 				learnedProducts,
 				currentAlphabet,
 				newSymbols,
-				1000,  // smartMaxTests
-				3,     // smartMinLength
+				2000,  // smartMaxTests: 1000 state extensions + 1000 original-strategy tests
+				1,     // smartMinLength: include short counterexamples
 				15,    // smartMaxLength
 				2,     // wpLookahead
 				rnd_seed
@@ -419,6 +420,9 @@ public class LearnAllProductsAdaptive {
 		CommandLine line;
 		try {
 			line = parser.parse(options, args);
+			if (line.hasOption(SEED)) {
+				rnd_seed.setSeed(Long.parseLong(line.getOptionValue(SEED)));
+			}
 		} catch (ParseException e) {
 			throw new Exception("Failed to parse command line options");
 		}
@@ -448,6 +452,7 @@ public class LearnAllProductsAdaptive {
 		
 		// Run experiment
 		System.out.println("Learning Product 1 from scratch...");
+		experiment.setSeedRoundLimit(Integer.parseInt(line.getOptionValue(SEED_ROUND, "7")));
 		experiment.run(true, null);
 		
 		// Extract results
@@ -577,6 +582,9 @@ public class LearnAllProductsAdaptive {
 			CommandLine line;
 			try {
 				line = parser.parse(options, args);
+				if (line.hasOption(SEED)) {
+					rnd_seed.setSeed(Long.parseLong(line.getOptionValue(SEED)));
+				}
 			} catch (ParseException e) {
 				formatter.printHelp("LearnAllProductsAdaptive", options);
 				return;
@@ -761,11 +769,8 @@ public class LearnAllProductsAdaptive {
 					learner, eqOracle, learner.get_alphabet_symbol());
 
 			// Run experiment
-			if (i == 0) {
-				experiment.run(true, null);
-			} else {
-				experiment.run(false, null);
-			}
+			// Final product models must finish learning; only fresh seed-building runs stop early.
+			experiment.run(false, null);
 
 		// For Product 1, save tree and hypothesis for immediate next product
 		// For other products, we'll re-learn Product 1 fresh before the next one
@@ -868,6 +873,7 @@ public class LearnAllProductsAdaptive {
 		options.addOption(LEARN, true,
 				"Model learning algorithm." + "\nOptions: {" + String.join(", ", learningMethodsAvailable) + "}");
 		options.addOption(SEED, true, "Seed used by the random generator");
+		options.addOption(SEED_ROUND, true, "Round limit for fresh seed trees only (default 7)");
 		options.addOption(INFO, true, "Add extra information as string");
 		options.addOption(DIR, true, "Directory of the SPL products");
 		options.addOption(FM, true, "Feature model");

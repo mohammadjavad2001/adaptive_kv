@@ -54,6 +54,13 @@ import de.learnlib.algorithms.kv.TreeCopyUtil;
  * @author falkhowar
  */
 public class Experiment<A extends Object> {
+    private int seedRoundLimit = 9;
+
+    /** Limits only runs explicitly requested as seed-building runs (first=true). */
+    public void setSeedRoundLimit(int round) {
+        if (round < 1) throw new IllegalArgumentException("Seed round must be positive");
+        seedRoundLimit = round;
+    }
 
     public static final String LEARNING_PROFILE_KEY = "Learning";
     public static final String COUNTEREXAMPLE_PROFILE_KEY = "Searching for counterexample";
@@ -181,7 +188,7 @@ public class Experiment<A extends Object> {
                 if(rounds.getCount()==3){
       
                 }
-                if(rounds.getCount()==9 && first){
+                if(rounds.getCount()==seedRoundLimit && first){
                     // Create a DEEP COPY of the tree at round 2
                     MultiDTree<String, Word<Word<String>>, StateInfo<String, Word<Word<String>>>> tree_round2 = kvLearner.getDiscriminationTree();
                     setDiscrtree(tree_round2);
