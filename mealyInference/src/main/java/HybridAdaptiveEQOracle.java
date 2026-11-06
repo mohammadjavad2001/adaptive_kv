@@ -28,6 +28,9 @@ public class HybridAdaptiveEQOracle<I, O> implements EquivalenceOracle<MealyMach
     
     private int smartOracleHits = 0;
     private int fallbackHits = 0;
+    private int replayHits = 0;
+    // Replay is scoped to the current product and checked against each new hypothesis.
+    private final Set<Word<I>> counterexamples = new LinkedHashSet<>();
 
     /**
      * Constructor for Hybrid Adaptive EQ Oracle
@@ -84,6 +87,18 @@ public class HybridAdaptiveEQOracle<I, O> implements EquivalenceOracle<MealyMach
     public DefaultQuery<I, Word<O>> findCounterExample(
             MealyMachine<?, I, ?, O> hypothesis,
             Collection<? extends I> inputs) {
+        for (Word<I> input : counterexamples) {
+            if (!inputs.containsAll(input.asList())) {
+                continue;
+            }
+            DefaultQuery<I, Word<O>> replay = new DefaultQuery<>(input);
+            membershipOracle.processQuery(replay);
+            if (!Objects.equals(hypothesis.computeOutput(input), replay.getOutput())) {
+                replayHits++;
+                System.out.println("Counterexample replay hit: " + input);
+                return replay;
+            }
+        }
         
         System.out.println("\n╔═══════════════════════════════════════════════════════╗");
         System.out.println("║         HYBRID EQ ORACLE - PHASE 1: SMART             ║");
@@ -93,6 +108,8 @@ public class HybridAdaptiveEQOracle<I, O> implements EquivalenceOracle<MealyMach
         DefaultQuery<I, Word<O>> counterExample = smartOracle.findCounterExample(hypothesis, inputs);
         
         if (counterExample != null) {
+            counterExample = minimizeCounterexample(hypothesis, counterExample);
+            counterexamples.add(counterExample.getInput());
             smartOracleHits++;
             System.out.println("\n✓✓✓ SMART ORACLE SUCCESS ✓✓✓");
             System.out.println("Counterexample found: " + counterExample.getInput());
@@ -112,6 +129,8 @@ public class HybridAdaptiveEQOracle<I, O> implements EquivalenceOracle<MealyMach
         counterExample = wpMethodOracle.findCounterExample(hypothesis, inputs);
         
         if (counterExample != null) {
+            counterExample = minimizeCounterexample(hypothesis, counterExample);
+            counterexamples.add(counterExample.getInput());
             fallbackHits++;
             System.out.println("\n✓✓✓ WpMETHOD FALLBACK SUCCESS ✓✓✓");
             System.out.println("Counterexample found: " + counterExample.getInput());
@@ -127,21 +146,49 @@ public class HybridAdaptiveEQOracle<I, O> implements EquivalenceOracle<MealyMach
         return counterExample;
     }
 
+    private DefaultQuery<I, Word<O>> minimizeCounterexample(
+            MealyMachine<?, I, ?, O> hypothesis, DefaultQuery<I, Word<O>> query) {
+        Word<I> input = query.getInput();
+        Word<O> expected = hypothesis.computeOutput(input);
+        Word<O> actual = query.getOutput();
+        for (int i = 0; i < Math.min(expected.length(), actual.length()); i++) {
+            if (!Objects.equals(expected.getSymbol(i), actual.getSymbol(i))) {
+                input = input.prefix(i + 1);
+                query = new DefaultQuery<>(input, actual.prefix(i + 1));
+                break;
+            }
+        }
+        // Every accepted deletion is verified against the current product through its EQ cache.
+        for (int i = 0; i < input.length() && input.length() > 1;) {
+            Word<I> candidate = input.prefix(i).concat(input.subWord(i + 1));
+            DefaultQuery<I, Word<O>> shorter = new DefaultQuery<>(candidate);
+            membershipOracle.processQuery(shorter);
+            if (!Objects.equals(hypothesis.computeOutput(candidate), shorter.getOutput())) {
+                query = shorter;
+                input = candidate;
+                i = 0;
+            } else {
+                i++;
+            }
+        }
+        return query;
+    }
+
     /**
      * Get statistics about oracle usage
      */
     public String getStatistics() {
-        int total = smartOracleHits + fallbackHits;
+        int total = smartOracleHits + fallbackHits + replayHits;
         if (total == 0) return "No counterexamples found yet";
         
         double smartPercent = (smartOracleHits * 100.0) / total;
         double fallbackPercent = (fallbackHits * 100.0) / total;
         
         return String.format(
-            "Smart: %d (%.1f%%), Fallback: %d (%.1f%%), Total: %d",
+            "Smart: %d (%.1f%%), Fallback: %d (%.1f%%), Replay: %d, Total: %d",
             smartOracleHits, smartPercent,
             fallbackHits, fallbackPercent,
-            total
+            replayHits, total
         );
     }
 }

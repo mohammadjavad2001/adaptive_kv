@@ -618,7 +618,7 @@ public class LearnAllProductsAdaptive {
 					Collections.singletonList(previousHypothesis);
 			return new HybridAdaptiveEQOracle<>(
 					oracleForEQoracle, previousProducts, currentAlphabet, newSymbols,
-					1000, 3, 15, 2, rnd_seed);
+					100, 1, 15, 2, rnd_seed);
 		}
 
 		EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> eqOracle;
@@ -755,6 +755,9 @@ public class LearnAllProductsAdaptive {
 			throw new Exception("Failed to parse command line options");
 		}
 		
+		if (line.hasOption(SEED)) {
+			rnd_seed.setSeed(Long.parseLong(line.getOptionValue(SEED)));
+		}
 		Alphabet<String> productAlphabet = mealyMachine.getInputAlphabet();
 		GrowingAlphabet<String> growingAlphabet = new GrowingMapAlphabet<>(productAlphabet);
 		
@@ -914,6 +917,9 @@ public class LearnAllProductsAdaptive {
 				return;
 			}
 
+			if (line.hasOption(SEED)) {
+				rnd_seed.setSeed(Long.parseLong(line.getOptionValue(SEED)));
+			}
 			Alphabet<String> productAlphabet = mealyMachine.getInputAlphabet();
 			System.out.println("\nProduct alphabet contains " + productAlphabet.size() + " symbols");
 
@@ -1093,8 +1099,11 @@ public class LearnAllProductsAdaptive {
 					.withAlphabet(round7Alphabet)
 					.create(null, null);
 
+			// Keep the next product's seed independent of Smart's random counterexample order.
+			EquivalenceOracle<MealyMachine<?, String, ?, Word<String>>, String, Word<Word<String>>> round7EqOracle =
+					buildEqOracle(rnd_seed, line, mealyMachine, cachedEqOracle, eq_sul);
 			Experiment.MealyExperiment<String, Word<String>> round7Experiment = new Experiment.MealyExperiment<String, Word<String>>(
-					round7Learner, eqOracle, productAlphabet);
+					round7Learner, round7EqOracle, productAlphabet);
 			round7Experiment.run(true, null, null);
 
 			tree_round2 = round7Experiment.getDiscrtree();
